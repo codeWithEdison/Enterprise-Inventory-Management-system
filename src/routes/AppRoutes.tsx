@@ -7,6 +7,8 @@ import ProtectedRoute from './ProtectedRoute';
 import { LoadingScreen } from '../components/common/LoadingScreen';
 import useAuth from '../hooks/useAuth';
 import { AdminRoute } from '../components/routes/AdminRoute';
+import UserProfile from '@/pages/users/UserProfile';
+import ChangePasswordPage from '@/pages/users/ChangePasswordPage';
 
 const AppRoutes = () => {
   const { isLoading } = useAuth();
@@ -91,8 +93,8 @@ const AppRoutes = () => {
           </Route>
 
           {/* User Profile */}
-          <Route path="profile" element={<div>Profile</div>} />
-          <Route path="change-password" element={<div>Change Password</div>} />
+          <Route path="profile" element={<UserProfile/>} /> 
+          <Route path="change-password" element={<ChangePasswordPage/>} /> 
         </Route>
 
         {/* Catch all route */}
