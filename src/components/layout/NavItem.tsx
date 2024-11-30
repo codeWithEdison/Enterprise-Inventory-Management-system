@@ -1,99 +1,84 @@
 // src/components/layout/NavItem.tsx
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { SideNavigationInterface } from '../../config/navigation';
+import React from "react";
+import { IoIosArrowDown, IoIosArrowUp } from "react-icons/io";
+import { NavLink, useLocation } from "react-router-dom";
+import { SideNavigationInterface } from "../../config/navigation";
+import { cn } from "../../lib/utils";
 
 interface NavItemProps {
-  item: SideNavigationInterface;
-  isSelected: boolean;
-  onSelect: () => void;
+  nav: SideNavigationInterface;
+  selectedMenuLink: string;
+  setSelectedMenu: (link: string) => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ item, isSelected, onSelect }) => {
-  const hasSubMenus = item.subMenus.length > 0;
-
-  const baseClasses = cn(
-    "group flex items-center w-full px-3 py-2 text-sm",
-    "rounded-md transition-colors duration-150",
-    "hover:bg-gray-100 hover:text-gray-900"
-  );
-
-  const activeClasses = cn(
-    "bg-primary-50 text-primary-900 font-medium",
-    "hover:bg-primary-100"
-  );
-
-  const inactiveClasses = cn(
-    "text-gray-700",
-    "hover:text-gray-900"
-  );
-
-  const IconComponent = item.icon;
+const NavItem: React.FC<NavItemProps> = ({
+  nav,
+  selectedMenuLink,
+  setSelectedMenu,
+}) => {
+  const location = useLocation();
+  const hasSubmenu = nav.subMenus.length > 0;
+  const isMainMenuActive = nav.subMenus.some(submenu => location.pathname === submenu.url);
 
   return (
-    <div className="relative">
-      <NavLink
-        to={hasSubMenus ? '#' : item.url}
-        onClick={(e) => {
-          if (hasSubMenus) {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
-        className={({ isActive }) =>
-          cn(
-            baseClasses,
-            isActive && !hasSubMenus ? activeClasses : inactiveClasses
-          )
-        }
-      >
-        {({ isActive }) => (
-          <>
-            <div className="flex items-center flex-1">
-              <IconComponent 
-                className={cn(
-                  "h-5 w-5 mr-3",
-                  isActive ? "text-primary-600" : "text-gray-400 group-hover:text-gray-500"
-                )}
-              />
-              <span>{item.label}</span>
+    <div className="mb-1">
+      <div className={cn(
+        "relative flex flex-col",
+        isMainMenuActive && "bg-gray-50 rounded-md"
+      )}>
+        <NavLink
+          to={hasSubmenu ? '#' : nav.url}
+          onClick={(e) => {
+            if (hasSubmenu) {
+              e.preventDefault();
+              setSelectedMenu(selectedMenuLink === nav.url ? "" : nav.url);
+            } else {
+              setSelectedMenu(nav.url);
+            }
+          }}
+          className={({ isActive }) => cn(
+            "flex items-center justify-between px-4 py-2 text-sm rounded-md transition-all",
+            "hover:bg-gray-100",
+            !hasSubmenu && isActive && "bg-primary-50 text-primary-700 font-medium",
+            hasSubmenu && isMainMenuActive && "text-primary-700 font-medium"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <nav.icon className="h-5 w-5" />
+            <span>{nav.title}</span>
+          </div>
+          {hasSubmenu && (
+            <div className="text-gray-400">
+              {selectedMenuLink === nav.url ? (
+                <IoIosArrowUp className="h-4 w-4" />
+              ) : (
+                <IoIosArrowDown className="h-4 w-4" />
+              )}
             </div>
-            {hasSubMenus && (
-              <div className="ml-auto">
-                {isSelected ? (
-                  <ChevronUp className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </NavLink>
+          )}
+        </NavLink>
 
-      {/* Submenu */}
-      {hasSubMenus && isSelected && (
-        <div className="mt-1 ml-6 pl-3 border-l border-gray-200 space-y-1">
-          {item.subMenus.map((submenu, index) => (
-            <NavLink
-              key={index}
-              to={submenu.url}
-              className={({ isActive }) =>
-                cn(
-                  "block py-2 px-3 text-sm rounded-md transition-colors duration-150",
-                  isActive
-                    ? "text-primary-900 bg-primary-50 font-medium"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                )
-              }
-            >
-              {submenu.title}
-            </NavLink>
-          ))}
-        </div>
-      )}
+        {/* Submenu */}
+        {hasSubmenu && selectedMenuLink === nav.url && (
+          <div className="mt-1 ml-3 pl-4 border-l border-gray-200 space-y-1">
+            {nav.subMenus.map((subMenu, index) => (
+              <NavLink
+                key={index}
+                to={subMenu.url}
+                className={({ isActive }) => cn(
+                  "block px-3 py-2 text-sm rounded-md transition-all",
+                  "hover:bg-gray-100",
+                  isActive 
+                    ? "bg-primary-50 text-primary-700 font-medium" 
+                    : "text-gray-600"
+                )}
+              >
+                {subMenu.title}
+              </NavLink>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
