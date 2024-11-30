@@ -1,98 +1,144 @@
-// src/components/layout/Navbar.tsx
-import React, { useState } from 'react';
-import { Menu, X, Bell, UserCircle, LogOut, ChevronDown } from 'lucide-react';
-import useAuth from '../../hooks/useAuth'; 
-import { cn } from '../../lib/utils';
+// src/components/layout/NavBar.tsx
+import React, { useState, useEffect, useRef } from "react";
+import { AiOutlineLogout, AiOutlineMenu } from "react-icons/ai";
+import { FaUserCircle } from "react-icons/fa";
+import { IoIosArrowDown } from "react-icons/io";
+import { TbArrowsDiagonalMinimize2 } from "react-icons/tb";
+import { RiLockPasswordLine } from "react-icons/ri";
+import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { AppDispatch } from '../../store';
+import { logout } from "../../features/auth/authSlice";
+import useAuth from "../../hooks/useAuth";
+// import UR_LOGO from "../../assets/images/ur-logo.png";
 
-interface NavbarProps {
-  isSidebarOpen: boolean;
-  onSidebarToggle: () => void;
+interface NavBarProps {
+  sidebarOpen: boolean;
+  setSidebarOpen: (status: boolean) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ 
-  isSidebarOpen, 
-  onSidebarToggle 
+const NavBar: React.FC<NavBarProps> = ({
+  sidebarOpen,
+  setSidebarOpen,
 }) => {
-  const { user, logout } = useAuth();
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [viewUser, setViewUser] = useState(false);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setViewUser(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    setViewUser(false);
+    dispatch(logout());
+  };
 
   return (
-    <header className="fixed top-0 right-0 left-0 lg:left-64 h-16 bg-white border-b border-gray-200 z-40">
-      <div className="h-full px-4 flex items-center justify-between">
-        {/* Left side */}
-        <div className="flex items-center">
+    <div className="bg-white text-black py-1 pl-3 fixed top-0 right-0 left-0 z-50 border-b shadow-sm">
+      <div className="flex flex-row items-center justify-between gap-3">
+        {/* Left Section */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={onSidebarToggle}
-            className="p-2 rounded-md text-gray-500 hover:bg-gray-100 lg:hidden"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="bg-primary-100 rounded-md p-2 cursor-pointer hover:bg-primary-300 
+                      focus:outline-none focus:ring-2 focus:ring-primary-500"
+            aria-label={sidebarOpen ? "Close menu" : "Open menu"}
           >
-            {isSidebarOpen ? (
-              <X className="h-6 w-6" />
+            {sidebarOpen ? (
+              <TbArrowsDiagonalMinimize2 className="text-2xl text-primary-800 animate__animated animate__zoomIn" />
             ) : (
-              <Menu className="h-6 w-6" />
+              <AiOutlineMenu className="text-2xl text-primary-800 animate__animated animate__fadeIn" />
             )}
           </button>
 
-          <div className="ml-4">
-            <h1 className="text-lg font-semibold text-gray-900">
-              UR HG Stock Management
-            </h1>
+          <div className="flex items-center gap-2">
+            <img src='/logo.png' alt="UR Logo" className="w-10 md:w-12" />
+            <span className="text-gray-700 font-bold text-sm md:text-base hidden sm:block">
+              UR HG STOCK
+            </span>
           </div>
         </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-4">
-          {/* Notifications */}
-          <button className="p-2 rounded-full hover:bg-gray-100 relative">
-            <Bell className="h-6 w-6 text-gray-500" />
-            <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full" />
+        {/* User Menu */}
+        <div className="flex items-center mr-2" ref={userMenuRef}>
+          <button
+            onClick={() => setViewUser(!viewUser)}
+            className="flex items-center gap-2 bg-primary-blue-white hover:bg-primary-100 
+                      py-2 pl-3 pr-1 rounded-md transition-all duration-200"
+            aria-expanded={viewUser}
+          >
+            <div className="rounded-full flex items-center justify-center bg-gray-400 
+                          group-hover:bg-primary-800 text-white h-8 w-8">
+              <FaUserCircle className="text-2xl" />
+            </div>
+            <span className="text-sm hidden sm:block pr-2">
+              {user?.firstName} {user?.lastName}
+            </span>
+            <IoIosArrowDown className={`text-xl text-primary-800 transition-transform duration-200 
+                                    ${viewUser ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* User menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100"
-            >
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                <UserCircle className="h-6 w-6 text-primary-700" />
-              </div>
-              <div className="hidden md:block text-sm">
-                <p className="font-medium text-gray-700">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {user?.userRoles[0]?.role.name}
-                </p>
-              </div>
-              <ChevronDown className={cn(
-                "h-4 w-4 text-gray-500 transition-transform",
-                showUserMenu && "transform rotate-180"
-              )} />
-            </button>
-
-            {/* Dropdown menu */}
-            {showUserMenu && (
-              <>
-                <div 
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowUserMenu(false)}
-                />
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  <button
-                    onClick={logout}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
+          {/* Dropdown Menu */}
+          {viewUser && (
+            <div className="absolute top-full right-0 mt-1 w-screen sm:w-64 
+                          bg-white rounded-b-lg sm:rounded-lg shadow-lg border border-gray-200 
+                          animate__animated animate__fadeIn animate__faster">
+              {/* Mobile User Info */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center gap-3">
+                  <FaUserCircle className="text-4xl text-gray-400" />
+                  <div>
+                    <div className="font-medium">{user?.firstName} {user?.lastName}</div>
+                    <div className="text-sm text-gray-500">{user?.userRoles?.[0]?.role.name}</div>
+                  </div>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+
+              {/* Menu Items */}
+              <div className="p-2">
+                <Link
+                  to="/profile"
+                  onClick={() => setViewUser(false)}
+                  className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100"
+                >
+                  <FaUserCircle className="text-xl text-primary-600" />
+                  <span>Profile</span>
+                </Link>
+
+                <Link
+                  to="/change-password"
+                  onClick={() => setViewUser(false)}
+                  className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-100"
+                >
+                  <RiLockPasswordLine className="text-xl text-primary-600" />
+                  <span>Change Password</span>
+                </Link>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 p-2 text-left text-red-600 
+                            rounded-md hover:bg-red-50 mt-2"
+                >
+                  <AiOutlineLogout className="text-xl" />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </header>
+    </div>
   );
 };
 
-export default Navbar;
+export default NavBar;
