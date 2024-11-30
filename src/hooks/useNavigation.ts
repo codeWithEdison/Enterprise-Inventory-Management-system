@@ -1,51 +1,61 @@
-// src/hooks/useNavigation.ts
+// src/hooks/useAppNavigation.ts
 import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import useAuth from './useAuth';
-import { AUTHENTICATED_MENUS } from '../config/navigation';
-import { RoleName } from '../types/api/types';
+import { 
+  AUTHENTICATED_MENUS, 
+  MENU_TYPE,
+  // SideNavigationInterface 
+} from '../config/navigation';
+// import { RoleName } from '../types/api/types';
 
-const useNavigation = () => {
+export const useAppNavigation = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const userRole = user?.userRoles?.[0]?.role.name;
 
-  const userRoles = useMemo(() => {
-    if (!user) return [];
-    return user.userRoles.map(role => role.role.name);
-  }, [user]);
-
-  const hasAccess = (allowedRoles: RoleName[] | "all") => {
-    if (allowedRoles === "all") return true;
-    if (!user) return false;
-    return userRoles.some(role => allowedRoles.includes(role));
-  };
-
+  // Filter menus based on user role
   const authorizedMenus = useMemo(() => {
+    if (!userRole) return [];
+
     return AUTHENTICATED_MENUS.filter(menu => {
-      // Check if user has access to main menu
-      if (!hasAccess(menu.roles)) return false;
+      // Check main menu access
+      const hasAccess = menu.roles === "all" || 
+        (Array.isArray(menu.roles) && menu.roles.includes(userRole));
 
-      // Filter submenus based on user roles
-      const authorizedSubMenus = menu.subMenus.filter(
-        submenu => hasAccess(submenu.roles)
-      );
+      if (!hasAccess) return false;
 
-      // Return menu with filtered submenus
-      return {
-        ...menu,
-        subMenus: authorizedSubMenus
-      };
+      // Filter submenus based on role
+      if (menu.subMenus.length > 0) {
+        menu.subMenus = menu.subMenus.filter(submenu =>
+          submenu.roles === "all" || 
+          (Array.isArray(submenu.roles) && submenu.roles.includes(userRole))
+        );
+      }
+
+      return true;
     });
-  }, [user]);
+  }, [userRole]);
 
-  const getAuthorizedMenusByType = (menuType: string) => {
-    return authorizedMenus.filter(menu => menu.menu_type === menuType);
-  };
+  // Get menus by category
+  const getMenusByCategory = (type: MENU_TYPE) => 
+    authorizedMenus.filter(menu => menu.menu_type === type);
+
+  // Get active menu
+  const activeMenu = useMemo(() => {
+    return authorizedMenus.find(menu => {
+      if (location.pathname === menu.url) return true;
+      return menu.subMenus.some(sub => location.pathname === sub.url);
+    });
+  }, [authorizedMenus, location.pathname]);
 
   return {
     authorizedMenus,
-    getAuthorizedMenusByType,
-    hasAccess
+    activeMenu,
+    userRole,
+    activityMenus: getMenusByCategory(MENU_TYPE.ACTIVITIES),
+    profileMenus: getMenusByCategory(MENU_TYPE.PROFILE),
   };
 };
 
-export default useNavigation;
-
+export default useAppNavigation;
