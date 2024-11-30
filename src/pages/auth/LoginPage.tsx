@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/auth/LoginPage.tsx
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import Input from '../../components/common/Input';
@@ -70,14 +70,14 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100"> 
       {/* Top Navigation */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
               <img 
-                src="/ur-logo.png" 
+                src="/logo.png" 
                 alt="UR Logo" 
                 className="h-12 w-auto"
               />
@@ -86,7 +86,7 @@ const LoginPage = () => {
                   UR HG STOCK
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Huye Campus
+                  Nyarugenge  Campus
                 </p>
               </div>
             </div>
@@ -95,18 +95,18 @@ const LoginPage = () => {
       </nav>
 
       {/* Login Form */}
-      <div className="max-w-md mx-auto px-4 py-16">
-        <div className="bg-white shadow-xl rounded-lg p-8">
-          <div className="text-center mb-8">
+      <div className="max-w-md  mx-auto px-4 py-16 ">
+        <div className="bg-white shadow-xl rounded-lg p-8 py-4 ">
+          <div className="text-start  mb-8">
             <h2 className="text-2xl font-bold text-gray-900">
-              Sign in to your account
+              Sign in 
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            {/* <p className="mt-2 text-sm text-gray-600">
               Please enter your credentials
-            </p>
+            </p> */}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4"> 
             <Input
               title="Email"
               type="email"
@@ -181,7 +181,7 @@ const LoginPage = () => {
             </div>
 
             {/* Test credentials */}
-            <div className="mt-6 bg-blue-50 p-4 rounded-md">
+            {/* <div className="mt-6 bg-blue-50 p-4 rounded-md">
               <p className="text-sm text-blue-700">
                 Test credentials:
                 <br />
@@ -189,7 +189,7 @@ const LoginPage = () => {
                 <br />
                 Password: password123
               </p>
-            </div>
+            </div> */}
           </form>
         </div>
       </div>
