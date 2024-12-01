@@ -1,21 +1,30 @@
+// src/routes/AppRoutes.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../components/layout/MainLayout';
 import LoginPage from '../pages/auth/LoginPage';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
+import StockInPage from '../pages/inventory/StockInPage';
+import StockOutPage from '../pages/inventory/StockOutPage';
+import StockTransferPage from '../pages/inventory/StockTransferPage';
 import ProtectedRoute from './ProtectedRoute';
 import { LoadingScreen } from '../components/common/LoadingScreen';
 import useAuth from '../hooks/useAuth';
-import { AdminRoute } from '../components/routes/AdminRoute';
+import { StockKeeperRoute } from '@/components/routes/StockKeeperRoute';
 import UserProfile from '@/pages/users/UserProfile';
 import ChangePasswordPage from '@/pages/users/ChangePasswordPage';
+import { RoleName } from '@/types/api/types';
 
 const AppRoutes = () => {
-  const { isLoading } = useAuth();
+  const { isLoading, user } = useAuth();
 
   if (isLoading) {
     return <LoadingScreen />;
   }
+
+  const userRole = user?.userRoles?.[0]?.role.name;
+  const isStockKeeper = userRole === RoleName.STOCK_KEEPER;
+  const isAdmin = userRole === RoleName.ADMIN;
 
   return (
     <Router>
@@ -40,13 +49,41 @@ const AppRoutes = () => {
 
           {/* Inventory Routes */}
           <Route path="inventory">
-            <Route index element={<InventoryPage />} />
+            {/* Main inventory page - Admin and Stock Keeper only */}
             <Route 
-              path="manage" 
+              index 
               element={
-                <AdminRoute>
-                  <div>Manage Inventory</div>
-                </AdminRoute>
+                isAdmin || isStockKeeper ? <InventoryPage /> : <Navigate to="/" replace />
+              } 
+            />
+
+            {/* Stock In - Stock Keeper only */}
+            <Route 
+              path="stock-in" 
+              element={
+                <StockKeeperRoute>
+                  <StockInPage />
+                </StockKeeperRoute>
+              } 
+            />
+
+            {/* Stock Out - Stock Keeper only */}
+            <Route 
+              path="stock-out" 
+              element={
+                <StockKeeperRoute>
+                  <StockOutPage />
+                </StockKeeperRoute>
+              } 
+            />
+
+            {/* Stock Transfer - Stock Keeper only */}
+            <Route 
+              path="transfer" 
+              element={
+                <StockKeeperRoute>
+                  <StockTransferPage />
+                </StockKeeperRoute>
               } 
             />
           </Route>
@@ -56,45 +93,17 @@ const AppRoutes = () => {
             <Route index element={<div>Requests List</div>} />
             <Route 
               path="new" 
-              element={
-                <ProtectedRoute>
-                  <div>New Request</div>
-                </ProtectedRoute>
-              } 
+              element={<div>New Request</div>}
             />
             <Route 
               path="approve" 
-              element={
-                <ProtectedRoute>
-                  <div>Approve Requests</div>
-                </ProtectedRoute>
-              } 
+              element={<div>Approve Requests</div>}
             />
           </Route>
 
-          {/* Admin Routes */}
-          <Route path="admin">
-            <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <div>User Management</div>
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="settings"
-              element={
-                <AdminRoute>
-                  <div>System Settings</div>
-                </AdminRoute>
-              }
-            />
-          </Route>
-
-          {/* User Profile */}
-          <Route path="profile" element={<UserProfile/>} /> 
-          <Route path="change-password" element={<ChangePasswordPage/>} /> 
+          {/* Profile Section */}
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
         </Route>
 
         {/* Catch all route */}
