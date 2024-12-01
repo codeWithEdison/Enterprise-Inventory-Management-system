@@ -63,7 +63,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
     title: "Dashboard",
     label: "Dashboard Overview",
     url: "/dashboard",
-    menu_type: MENU_TYPE.ACTIVITIES,
+    menu_type: MENU_TYPE.ACTIVITIES, 
     roles: "all",
     subMenus: []
   },
@@ -76,16 +76,16 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
     roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER],
     subMenus: [
       {
-        title: "Items List",
-        label: "Manage Items",
-        url: "/inventory",
-        roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER]
-      },
-      {
         title: "Stock In",
         label: "Stock Intake",
         url: "/inventory/stock-in",
         roles: [RoleName.STOCK_KEEPER]
+      },
+      {
+        title: "Items List",
+        label: "Manage Items",
+        url: "/inventory/stock-out", 
+        roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER]
       },
       {
         title: "Stock Out",
@@ -123,64 +123,6 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
       }
     ]
   },
-  // {
-  //   icon: Building2,
-  //   title: "Departments",
-  //   label: "Department Management",
-  //   url: "/departments",
-  //   menu_type: MENU_TYPE.ACTIVITIES,
-  //   roles: [RoleName.ADMIN],
-  //   subMenus: []
-  // },
-  // {
-  //   icon: Users,
-  //   title: "Users",
-  //   label: "User Management",
-  //   url: "/users",
-  //   menu_type: MENU_TYPE.ACTIVITIES,
-  //   roles: [RoleName.ADMIN],
-  //   subMenus: []
-  // },
-  // {
-  //   icon: History,
-  //   title: "Transactions",
-  //   label: "Transaction History",
-  //   url: "/transactions",
-  //   menu_type: MENU_TYPE.ACTIVITIES,
-  //   roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER],
-  //   subMenus: []
-  // },
-  // {
-  //   icon: BarChart3,
-  //   title: "Reports",
-  //   label: "Reports & Analytics",
-  //   url: "/reports",
-  //   menu_type: MENU_TYPE.ACTIVITIES,
-  //   roles: [RoleName.ADMIN, RoleName.HOD, RoleName.STOCK_KEEPER],
-  //   subMenus: [
-  //     {
-  //       title: "Stock Report",
-  //       label: "Stock Level Report",
-  //       url: "/reports/stock",
-  //       roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER]
-  //     },
-  //     {
-  //       title: "Request Report",
-  //       label: "Request Analysis",
-  //       url: "/reports/requests",
-  //       roles: [RoleName.ADMIN, RoleName.HOD]
-  //     }
-  //   ]
-  // },
-  // {
-  //   icon: Bell,
-  //   title: "Notifications",
-  //   label: "My Notifications",
-  //   url: "/notifications",
-  //   menu_type: MENU_TYPE.ACTIVITIES,
-  //   roles: "all",
-  //   subMenus: []
-  // },
 
   // Profile Section
   {
