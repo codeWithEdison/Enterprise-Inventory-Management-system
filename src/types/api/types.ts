@@ -324,6 +324,7 @@ export interface ItemFilterParams extends PaginationParams {
 }
 
 export interface RequestFilterParams extends PaginationParams, DateRangeParams {
+  [x: string]: string;
   status?: RequestStatus;
   userId?: UUID;
   departmentId?: UUID;
