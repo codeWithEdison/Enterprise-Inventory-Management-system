@@ -1,12 +1,13 @@
 // src/pages/inventory/InventoryPage.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Filter, AlertTriangle } from 'lucide-react';
 import { mockItems } from '@/lib/mock-data';
 import { 
   ItemResponse, 
   Status, 
   CreateItemInput,
-  ItemFilterParams 
+  // ItemFilterParams,  
+  UpdateItemInput
 } from '@/types/api/types';
 
 import Modal, { ModalSize } from '@/components/common/Modal';
@@ -16,44 +17,80 @@ import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { EmptyState } from '@/components/common/EmptyState';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import Pagination from '@/components/common/Pagination';
+import EditItemForm from './EditItemForm';
+import { cn } from '@/lib/utils';
+
+
+const PAGE_SIZE = 10;
+
 const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<Status | 'all'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ItemResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Filter items based on search and status
-  const filterParams: ItemFilterParams = {
-    search: searchQuery,
-    status: filterStatus === 'all' ? undefined : filterStatus
-  };
-
-  const filteredItems = mockItems.filter(item => {
-    const matchesSearch = !filterParams.search || 
-      item.name.toLowerCase().includes(filterParams.search.toLowerCase()) ||
-      item.description?.toLowerCase().includes(filterParams.search.toLowerCase());
+   // Filter items
+   const filteredItems = mockItems.filter(item => {
+    const matchesSearch = !searchQuery || 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesStatus = !filterParams.status || item.status === filterParams.status;
+    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddItem = async (data: CreateItemInput) => {
+  // Pagination
+  const totalItems = filteredItems.length;
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+  const currentItems = filteredItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus]);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleAddItem = async (_data: CreateItemInput) => {
     setIsLoading(true);
     try {
-      // Here you would make your API call
-      console.log('Adding item:', data);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      // Add success handling
+      // API call would go here
+      await new Promise(resolve => setTimeout(resolve, 1000));
       setIsAddModalOpen(false);
     } catch (error) {
-      // Add error handling
       console.error('Failed to add item:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleEditItem = async (_itemId: string, _data: UpdateItemInput) => {
+    setIsLoading(true);
+    try {
+      // API call would go here
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setIsEditModalOpen(false);
+      setSelectedItem(null);
+    } catch (error) {
+      console.error('Failed to update item:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const openEditModal = (item: ItemResponse) => {
+    setSelectedItem(item);
+    setIsEditModalOpen(true);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -71,7 +108,7 @@ const InventoryPage = () => {
         </button>
       </PageHeader>
 
-      {/* Add Item Modal */}
+       {/* Add Item Modal */}
       <Modal
         isOpen={isAddModalOpen}
         onClose={() => !isLoading && setIsAddModalOpen(false)}
@@ -84,6 +121,24 @@ const InventoryPage = () => {
           isLoading={isLoading}
         />
       </Modal>
+
+      {/* Edit Item Modal */}
+      {selectedItem && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => !isLoading && setIsEditModalOpen(false)}
+          title="Edit Item"
+          widthSizeClass={ModalSize.medium}
+        >
+          <EditItemForm 
+            item={selectedItem}
+            onSubmit={handleEditItem}
+            onCancel={() => setIsEditModalOpen(false)}
+            isLoading={isLoading}
+          />
+        </Modal>
+      )}
+
 
       {/* Filters */}
       <Card>
@@ -117,7 +172,7 @@ const InventoryPage = () => {
 
       {/* Items List */}
       <Card>
-        {filteredItems.length > 0 ? (
+        {currentItems.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -140,11 +195,23 @@ const InventoryPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredItems.map((item) => (
-                  <ItemRow key={item.id} item={item} />
-                ))}
+              {currentItems.map((item) => (
+                    <ItemRow 
+                      key={item.id} 
+                      item={item}
+                      onEdit={() => openEditModal(item)}
+                    />
+                  ))}
               </tbody>
             </table>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+              totalItems={totalItems}
+              onPageChange={setCurrentPage}
+              className="border-t"
+            />
           </div>
         ) : (
           <EmptyState
@@ -162,12 +229,23 @@ interface ItemRowProps {
   item: ItemResponse;
 }
 
-const ItemRow: React.FC<ItemRowProps> = ({ item }) => {
+// Updated ItemRow component
+interface ItemRowProps {
+  item: ItemResponse;
+  onEdit: () => void;
+}
+
+const ItemRow: React.FC<ItemRowProps> = ({ item, onEdit }) => {
   const isLowStock = (item.currentStock || 0) < item.minimumQuantity;
+
+  const getStockLevelClass = () => {
+    if (isLowStock) return 'text-amber-700 bg-amber-50';
+    return 'text-green-700 bg-green-50';
+  };
 
   return (
     <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-6 py-4">
         <div>
           <div className="text-sm font-medium text-gray-900">{item.name}</div>
           {item.description && (
@@ -176,13 +254,20 @@ const ItemRow: React.FC<ItemRowProps> = ({ item }) => {
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           {isLowStock && (
-            <AlertTriangle className="h-4 w-4 text-amber-500 mr-2" />
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
           )}
           <div>
-            <div className="text-sm text-gray-900">{item.currentStock} units</div>
-            <div className="text-xs text-gray-500">Min: {item.minimumQuantity}</div>
+            <div className={cn(
+              "inline-flex text-sm px-2 py-1 rounded-full font-medium",
+              getStockLevelClass()
+            )}>
+              {item.currentStock} units
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Min: {item.minimumQuantity}
+            </div>
           </div>
         </div>
       </td>
@@ -192,8 +277,12 @@ const ItemRow: React.FC<ItemRowProps> = ({ item }) => {
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
         {new Date(item.updatedAt).toLocaleDateString()}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-        <button className="text-primary-600 hover:text-primary-900">
+      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+        <button
+          onClick={onEdit}
+          className="text-primary-600 hover:text-primary-900 font-medium 
+                   hover:underline focus:outline-none"
+        >
           Edit
         </button>
       </td>
