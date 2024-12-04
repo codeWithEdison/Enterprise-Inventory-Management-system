@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SearchInput } from '@/components/common/SearchInput';
+import { mockApi } from '@/services/mockApi';
+import { mockRequests } from '@/lib/mock-data';
 
 const PAGE_SIZE = 10;
 
@@ -23,7 +25,7 @@ const MyRequestsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Mock data - replace with actual data
-  const myRequests: RequestResponse[] = [];
+  const myRequests: RequestResponse[] = mockRequests; 
 
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
