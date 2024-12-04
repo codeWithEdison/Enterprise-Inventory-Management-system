@@ -2,7 +2,7 @@
 // src/pages/auth/LoginPage.tsx
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import Input from '../../components/common/Input';
 // import Alert, { AlertType } from '../../components/common/Alert';
@@ -70,33 +70,9 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100"> 
-      {/* Top Navigation */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <img 
-                src="/logo.png" 
-                alt="UR Logo" 
-                className="h-12 w-auto"
-              />
-              <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-gray-900">
-                  UR HG STOCK
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Nyarugenge  Campus
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      {/* Login Form */}
-      <div className="max-w-md  mx-auto px-4 py-16 ">
-        <div className="bg-white shadow-xl rounded-lg p-8 py-4 ">
+      
+        <div className="bg-white shadow-md  rounded-lg p-8 py-4 ">
           <div className="text-start  mb-8">
             <h2 className="text-2xl font-bold text-gray-900">
               Sign in 
@@ -150,9 +126,9 @@ const LoginPage = () => {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
+                <Link to="/auth/forgot-password" className="font-medium text-primary-600 hover:text-primary-500"> 
                   Forgot your password?
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -192,8 +168,8 @@ const LoginPage = () => {
             </div> */}
           </form>
         </div>
-      </div>
-    </div>
+     
+    
   );
 };
 
