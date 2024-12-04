@@ -10,6 +10,7 @@ import { useDispatch } from "react-redux";
 import { AppDispatch } from '../../store';
 import { logout } from "../../features/auth/authSlice";
 import useAuth from "../../hooks/useAuth";
+import { NotificationDropdown } from "../notifications/NotificationDropdown";
 // import UR_LOGO from "../../assets/images/ur-logo.png";
 
 interface NavBarProps {
@@ -71,6 +72,7 @@ const NavBar: React.FC<NavBarProps> = ({
 
         {/* User Menu */}
         <div className="flex items-center mr-2" ref={userMenuRef}>
+        <NotificationDropdown />
           <button
             onClick={() => setViewUser(!viewUser)}
             className="flex items-center gap-2 bg-primary-blue-white hover:bg-primary-100 
