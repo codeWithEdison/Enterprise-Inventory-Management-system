@@ -55,7 +55,8 @@ export const useAppNavigation = () => {
     userRole,
     activityMenus: getMenusByCategory(MENU_TYPE.ACTIVITIES),
     profileMenus: getMenusByCategory(MENU_TYPE.PROFILE),
+    adminMenus: getMenusByCategory(MENU_TYPE.ADMIN),
   };
 };
 
-export default useAppNavigation;
+export default useAppNavigation; 
