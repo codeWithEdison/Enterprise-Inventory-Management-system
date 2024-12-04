@@ -9,16 +9,28 @@ interface NavItemProps {
   nav: SideNavigationInterface;
   selectedMenuLink: string;
   setSelectedMenu: (link: string) => void;
+  openSubmenuByDefault?: boolean;
 }
 
 const NavItem: React.FC<NavItemProps> = ({
   nav,
   selectedMenuLink,
   setSelectedMenu,
+  openSubmenuByDefault = false,
 }) => {
   const location = useLocation();
   const hasSubmenu = nav.subMenus.length > 0;
-  const isMainMenuActive = nav.subMenus.some(submenu => location.pathname === submenu.url);
+  const isMainMenuActive = nav.url === selectedMenuLink || 
+    nav.subMenus.some(submenu => location.pathname === submenu.url);
+  const isSubmenuOpen = openSubmenuByDefault || selectedMenuLink === nav.url;
+
+  const handleClick = () => {
+    if (hasSubmenu) {
+      setSelectedMenu(selectedMenuLink === nav.url ? "" : nav.url);
+    } else {
+      setSelectedMenu(nav.url);
+    }
+  };
 
   return (
     <div className="mb-1">
@@ -28,14 +40,7 @@ const NavItem: React.FC<NavItemProps> = ({
       )}>
         <NavLink
           to={hasSubmenu ? '#' : nav.url}
-          onClick={(e) => {
-            if (hasSubmenu) {
-              e.preventDefault();
-              setSelectedMenu(selectedMenuLink === nav.url ? "" : nav.url);
-            } else {
-              setSelectedMenu(nav.url);
-            }
-          }}
+          onClick={handleClick}
           className={({ isActive }) => cn(
             "flex items-center justify-between px-4 py-2 text-sm rounded-md transition-all",
             "hover:bg-gray-100",
@@ -49,7 +54,7 @@ const NavItem: React.FC<NavItemProps> = ({
           </div>
           {hasSubmenu && (
             <div className="text-gray-400">
-              {selectedMenuLink === nav.url ? (
+              {isSubmenuOpen ? (
                 <IoIosArrowUp className="h-4 w-4" />
               ) : (
                 <IoIosArrowDown className="h-4 w-4" />
@@ -59,7 +64,7 @@ const NavItem: React.FC<NavItemProps> = ({
         </NavLink>
 
         {/* Submenu */}
-        {hasSubmenu && selectedMenuLink === nav.url && (
+        {hasSubmenu && isSubmenuOpen && (
           <div className="mt-1 ml-3 pl-4 border-l border-gray-200 space-y-1">
             {nav.subMenus.map((subMenu, index) => (
               <NavLink
@@ -83,4 +88,4 @@ const NavItem: React.FC<NavItemProps> = ({
   );
 };
 
-export default NavItem;
+export default NavItem; 
