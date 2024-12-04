@@ -1,8 +1,9 @@
 import { Outlet } from 'react-router-dom';
+import Footer from './Footer';
 
 const AuthLayout = () => {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className='bg-gray-100 h-screen '> 
       {/* Top Navigation */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -27,10 +28,14 @@ const AuthLayout = () => {
       </nav>
 
       {/* Content */}
-      <div className="max-w-md mx-auto px-4 py-16">
-        <div className="bg-white shadow-xl rounded-lg p-8">
-          <Outlet />
+      <div className=" max-w-lg  mx-auto px-4 py-16">
+        <div  >
+          <Outlet /> 
         </div>
+      </div>
+      <div className=' fixed bottom-0 w-full '>  
+
+      <Footer /> 
       </div>
     </div>
   );
