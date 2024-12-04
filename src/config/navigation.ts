@@ -12,12 +12,13 @@ import {
   Bell,
   KeyRound
 } from 'lucide-react';
-import { RoleName } from '../types/api/types';
+import { RoleName } from '@/types/api/types';
 
 export enum MENU_TYPE {
   NONE = "NONE",
   PROFILE = "PROFILE",
-  ACTIVITIES = "ACTIVITIES"
+  ACTIVITIES = "ACTIVITIES",
+  ADMIN = "ADMIN"
 }
 
 export interface NavigationInterface {
@@ -52,6 +53,14 @@ export const PUBLIC_ROUTES: NavigationInterface[] = [
   {
     title: "Forgot Password",
     url: "/auth/forgot-password",
+  },
+  {
+    title: "Reset Password",
+    url: "/auth/reset-password",
+  },
+  {
+    title: "Verify Email",
+    url: "/auth/verify-email",
   }
 ];
 
@@ -62,7 +71,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
     icon: LayoutDashboard,
     title: "Dashboard",
     label: "Dashboard Overview",
-    url: "/dashboard",
+    url: "/",
     menu_type: MENU_TYPE.ACTIVITIES, 
     roles: "all",
     subMenus: []
@@ -84,13 +93,25 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
       {
         title: "Items List",
         label: "Manage Items",
-        url: "/inventory/stock-out", 
+        url: "/inventory/items", 
         roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER]
       },
       {
         title: "Stock Out",
         label: "Stock Release",
         url: "/inventory/stock-out",
+        roles: [RoleName.STOCK_KEEPER]
+      },
+      {
+        title: "Stock Transfer",
+        label: "Stock Transfers",
+        url: "/inventory/transfer",
+        roles: [RoleName.STOCK_KEEPER]
+      },
+      {
+        title: "Stock Adjustments",
+        label: "Manage Stock Adjustments",
+        url: "/inventory/adjustments",
         roles: [RoleName.STOCK_KEEPER]
       }
     ]
@@ -118,13 +139,103 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
       {
         title: "Pending Approvals",
         label: "Requests Pending Approval",
-        url: "/requests/my-requests",
+        url: "/requests/approve",
         roles: [RoleName.HOD, RoleName.ADMIN]
+      },
+      {
+        title: "All Requests",
+        label: "View All Requests",
+        url: "/requests",
+        roles: [RoleName.ADMIN, RoleName.HOD, RoleName.STOCK_KEEPER]
+      }
+    ]
+  },
+  {
+    icon: BarChart3,
+    title: "Reports",
+    label: "Reporting",
+    url: "/reports",
+    menu_type: MENU_TYPE.ACTIVITIES,
+    roles: "all",
+    subMenus: [
+      {
+        title: "Stock Report",
+        label: "Stock Reporting",
+        url: "/reports/stock",
+        roles: [RoleName.STOCK_KEEPER, RoleName.ADMIN]
+      },
+      {
+        title: "Transaction Report",
+        label: "Transaction Reporting",
+        url: "/reports/transactions",
+        roles: [RoleName.STOCK_KEEPER, RoleName.ADMIN]
+      },
+      {
+        title: "Request Report",
+        label: "Request Reporting",
+        url: "/reports/requests",
+        roles: "all"
+      },
+      {
+        title: "User Report",
+        label: "User Reporting",
+        url: "/reports/users",
+        roles: [RoleName.ADMIN]
       }
     ]
   },
 
-  // Profile Section
+  // Admin Section
+  {
+    icon: Users,
+    title: "Users",
+    label: "User Management",
+    url: "/admin/users",
+    menu_type: MENU_TYPE.ADMIN,
+    roles: [RoleName.ADMIN],
+    subMenus: [
+      {
+        title: "Users List",
+        label: "Manage Users",
+        url: "/admin/users",
+        roles: [RoleName.ADMIN]
+      },
+      {
+        title: "Create User",
+        label: "Add New User",
+        url: "/admin/users/new",
+        roles: [RoleName.ADMIN]
+      },
+      {
+        title: "Roles",
+        label: "Manage Roles",
+        url: "/admin/roles",
+        roles: [RoleName.ADMIN]
+      }
+    ]
+  },
+  {
+    icon: Building2,
+    title: "Departments",
+    label: "Department Management",
+    url: "/admin/departments",
+    menu_type: MENU_TYPE.ADMIN,
+    roles: [RoleName.ADMIN],
+    subMenus: [
+      {
+        title: "Departments List",
+        label: "Manage Departments",
+        url: "/admin/departments",
+        roles: [RoleName.ADMIN]
+      },
+      {
+        title: "Create Department",
+        label: "Add New Department",
+        url: "/admin/departments/new",
+        roles: [RoleName.ADMIN]
+      }
+    ]
+  },
   {
     icon: UserCircle,
     title: "Profile",
@@ -152,6 +263,10 @@ export const getMenuCategories = () => [
     title: "Activities"
   },
   {
+    key: MENU_TYPE.ADMIN,
+    title: "Administration"
+  },
+  {
     key: MENU_TYPE.PROFILE,
     title: "Profile"
   }
@@ -171,6 +286,8 @@ export const getMenusByRole = (role: RoleName) =>
 // Helper function to get all activity menus
 export const getActivityMenus = () => getMenusByType(MENU_TYPE.ACTIVITIES);
 
+// Helper function to get all admin menus
+export const getAdminMenus = () => getMenusByType(MENU_TYPE.ADMIN);
+
 // Helper function to get all profile menus
 export const getProfileMenus = () => getMenusByType(MENU_TYPE.PROFILE);
-
