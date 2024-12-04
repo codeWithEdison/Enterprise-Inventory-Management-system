@@ -75,9 +75,16 @@ import {
   
   // Request Service
   export const requestService = {
+
     getRequests: async (): Promise<RequestResponse[]> => {
       await delay(300);
       return mockRequests;
+    },
+    getRequestById: async (id: string): Promise<RequestResponse> => {
+      await delay(300);
+      const request = mockRequests.find(req => req.id === id);
+      if (!request) throw new Error('Request not found');
+      return request;
     },
   
     updateRequestStatus: async (
