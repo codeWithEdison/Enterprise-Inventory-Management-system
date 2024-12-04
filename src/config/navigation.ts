@@ -118,7 +118,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
       {
         title: "Pending Approvals",
         label: "Requests Pending Approval",
-        url: "/requests/pending",
+        url: "/requests/my-requests",
         roles: [RoleName.HOD, RoleName.ADMIN]
       }
     ]
@@ -173,3 +173,4 @@ export const getActivityMenus = () => getMenusByType(MENU_TYPE.ACTIVITIES);
 
 // Helper function to get all profile menus
 export const getProfileMenus = () => getMenusByType(MENU_TYPE.PROFILE);
+
