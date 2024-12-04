@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { MdClose } from "react-icons/md";
 import { useLocation } from "react-router-dom";
 import NavItem from "./NavItem";
-// import { SideNavigationInterface } from "@/config/navigation";
 import useAppNavigation from "../../hooks/useNavigation";
 import { cn } from "../../lib/utils";
 import { SideNavigationInterface } from "../../config/navigation";
@@ -21,20 +20,19 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
   menus
 }) => {
   const [selectedMenuLink, setSelectedMenuLink] = useState("");
-  const { activityMenus, profileMenus } = useAppNavigation();
+  const { activityMenus, profileMenus, adminMenus } = useAppNavigation();
   const location = useLocation();
 
   // Reset selected menu when route changes
   useEffect(() => {
-    const currentMenu = [...activityMenus, ...profileMenus].find(menu => 
+    const currentMenu = [...activityMenus, ...profileMenus, ...adminMenus].find(menu => 
       menu.url === location.pathname || 
-      menu.subMenus.some(sub => sub.url === location.pathname)
+      menu.subMenus.some((sub: { url: string; }) => sub.url === location.pathname)
     );
     if (currentMenu) {
       setSelectedMenuLink(currentMenu.url);
     }
-  }, [location.pathname, activityMenus, profileMenus]);
-  
+  }, [location.pathname, activityMenus, profileMenus, adminMenus]);
 
   return (
     <aside
@@ -58,25 +56,6 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
         </button>
       </div>
 
-      {/* Profile Section */}
-      {profileMenus.length > 0 && (
-          <div className="mt-8 space-y-1">
-            <div className="px-3 mb-2">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Profile
-              </h2>
-            </div>
-            {profileMenus.map((menu, index) => (
-              <NavItem
-                key={index}
-                nav={menu}
-                selectedMenuLink={selectedMenuLink}
-                setSelectedMenu={setSelectedMenuLink}
-              />
-            ))}
-          </div>
-        )}
-          
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
         {/* Activities Section */}
@@ -92,13 +71,52 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
                 key={index}
                 nav={menu}
                 selectedMenuLink={selectedMenuLink}
-                setSelectedMenu={setSelectedMenuLink}
+                setSelectedMenu={(link) => setSelectedMenuLink(link)}
+                openSubmenuByDefault
               />
             ))}
           </div>
         )}
 
-        
+        {/* Profile Section */}
+        {profileMenus.length > 0 && (
+          <div className="mt-8 space-y-1">
+            <div className="px-3 mb-2">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Profile
+              </h2>
+            </div>
+            {profileMenus.map((menu, index) => (
+              <NavItem
+                key={index}
+                nav={menu}
+                selectedMenuLink={selectedMenuLink}
+                setSelectedMenu={(link) => setSelectedMenuLink(link)}
+                openSubmenuByDefault
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Administration Section */}
+        {adminMenus.length > 0 && (
+          <div className="mt-8 space-y-1">
+            <div className="px-3 mb-2">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Administration
+              </h2>
+            </div>
+            {adminMenus.map((menu: SideNavigationInterface, index: React.Key | null | undefined) => (
+              <NavItem
+                key={index}
+                nav={menu}
+                selectedMenuLink={selectedMenuLink}
+                setSelectedMenu={(link) => setSelectedMenuLink(link)}
+                openSubmenuByDefault
+              />
+            ))}
+          </div>
+        )}
       </div>
     </aside>
   );
