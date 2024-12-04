@@ -5,11 +5,12 @@ import NavBar from "./Navbar";
 import SideNavBar from "./Sidebar";
 import useAuth from "../../hooks/useAuth";
 import useAppNavigation from "../../hooks/useNavigation";
+// import Footer from "./Footer";
 
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Get initial state from localStorage or default to true
-    const saved = localStorage.getItem('sidebarOpen');
+    const saved = localStorage.getItem("sidebarOpen");
     return saved !== null ? JSON.parse(saved) : true;
   });
   const { user } = useAuth();
@@ -17,7 +18,7 @@ const MainLayout = () => {
 
   // Persist sidebar state
   useEffect(() => {
-    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen));
+    localStorage.setItem("sidebarOpen", JSON.stringify(sidebarOpen));
   }, [sidebarOpen]);
 
   // Handle window resize
@@ -28,8 +29,8 @@ const MainLayout = () => {
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   if (!user) return null;
@@ -37,13 +38,10 @@ const MainLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* NavBar */}
-      <NavBar 
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-      />
+      <NavBar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       {/* Sidebar */}
-      <SideNavBar 
+      <SideNavBar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         menus={authorizedMenus}
@@ -54,21 +52,24 @@ const MainLayout = () => {
         className={`
           pt-16 min-h-screen
           transition-all duration-300 ease-in-out
-          ${sidebarOpen ? 'md:pl-64' : 'md:pl-0'}
+          ${sidebarOpen ? "md:pl-64" : "md:pl-0"}
         `}
       >
         <div className="p-6 max-w-7xl mx-auto">
           <Outlet />
         </div>
+        {/* <Footer />  */}
       </main>
 
       {/* Mobile Overlay */}
       {sidebarOpen && window.innerWidth < 768 && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20"
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      
     </div>
   );
 };
