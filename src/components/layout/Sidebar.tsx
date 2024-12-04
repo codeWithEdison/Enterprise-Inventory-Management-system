@@ -34,6 +34,7 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
       setSelectedMenuLink(currentMenu.url);
     }
   }, [location.pathname, activityMenus, profileMenus]);
+  
 
   return (
     <aside
