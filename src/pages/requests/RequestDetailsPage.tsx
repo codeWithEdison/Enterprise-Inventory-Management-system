@@ -1,12 +1,14 @@
 // src/pages/requests/RequestDetailsPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, ClockIcon, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, ClockIcon, Loader2, PackageCheck } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { mockApi } from '@/services/mockApi';
 import useAuth from '@/hooks/useAuth';
-import { RequestResponse, RequestStatus, RoleName } from '@/types/api/types';
+import { RequestResponse, RequestStatus, RoleName, TransactionType } from '@/types/api/types';
+import Alert, { AlertType } from '@/components/common/Alert';
 
 const RequestDetailsPage = () => {
   const { id } = useParams();
@@ -17,16 +19,16 @@ const RequestDetailsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [approvalRemark, setApprovalRemark] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [alert, setAlert] = useState<{ type: AlertType; message: string } | null>(null);
 
   const userRole = user?.userRoles[0]?.role.name;
   const canApproveRequest = userRole === RoleName.HOD || userRole === RoleName.ADMIN;
-//   const isOwnRequest = request?.userId === user?.id;
+  const isStockKeeper = userRole === RoleName.STOCK_KEEPER;
 
   useEffect(() => {
     const fetchRequest = async () => {
       try {
         setIsLoading(true);
-        // Implement this in your mock API
         const data = await mockApi.requests.getRequestById(id || '');
         setRequest(data);
       } catch (err) {
@@ -37,7 +39,9 @@ const RequestDetailsPage = () => {
       }
     };
 
-    fetchRequest();
+    if (id) {
+      fetchRequest();
+    }
   }, [id]);
 
   const handleStatusUpdate = async (newStatus: RequestStatus) => {
@@ -52,8 +56,52 @@ const RequestDetailsPage = () => {
       );
       setRequest(updatedRequest);
       setApprovalRemark('');
+      setAlert({
+        type: AlertType.SUCCESS,
+        message: `Request ${newStatus.toLowerCase()} successfully`
+      });
     } catch (err) {
       console.error('Error updating request:', err);
+      setAlert({
+        type: AlertType.DANGER,
+        message: 'Failed to update request status'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleItemFulfillment = async (itemId: string) => {
+    if (!request || isProcessing) return;
+
+    try {
+      setIsProcessing(true);
+      // Create a stock out transaction
+      await mockApi.transactions.create({
+        itemId,
+        quantity: request.requestedItems.find(item => item.id === itemId)?.requestedQuantity || 0,
+        transactionType: TransactionType.OUT,
+        locationId: 'default-location', // You might want to get this from a form or context
+        reason: `Fulfilling request ${request.id}`
+      });
+
+      // Update request status
+      const updatedRequest = await mockApi.requests.updateRequestStatus(
+        request.id,
+        RequestStatus.FULLFILLED,
+        'Items fulfilled'
+      );
+      setRequest(updatedRequest);
+      setAlert({
+        type: AlertType.SUCCESS,
+        message: 'Item marked as fulfilled'
+      });
+    } catch (err) {
+      console.error('Error fulfilling item:', err);
+      setAlert({
+        type: AlertType.DANGER,
+        message: 'Failed to fulfill item'
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -61,7 +109,7 @@ const RequestDetailsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
       </div>
     );
@@ -98,25 +146,30 @@ const RequestDetailsPage = () => {
 
   return (
     <div className="space-y-6">
+      {alert && (
+        <Alert
+          alertType={alert.type}
+          title={alert.message}
+          close={() => setAlert(null)}
+        />
+      )}
+
       <PageHeader
         title="Request Details"
         subtitle={`Request #${request.id}`}
       >
-        <div className="flex gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-        </div>
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
       </PageHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Request Information */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info */}
+          {/* Request Information */}
           <Card className="p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Request Information</h3>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -159,11 +212,13 @@ const RequestDetailsPage = () => {
                       Requested Qty
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Approved Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
                     </th>
+                    {isStockKeeper && request.status === RequestStatus.APPROVED && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -180,13 +235,26 @@ const RequestDetailsPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {item.approvedQuantity || '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(item.status)}
                       </td>
+                      {isStockKeeper && request.status === RequestStatus.APPROVED && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {item.status !== RequestStatus.FULLFILLED ? (
+                            <button
+                              onClick={() => handleItemFulfillment(item.id)}
+                              disabled={isProcessing}
+                              className="inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
+                            >
+                              <PackageCheck className="h-4 w-4 mr-1" />
+                              Mark Fulfilled
+                            </button>
+                          ) : (
+                            <span className="text-sm text-green-600 font-medium">
+                              Fulfilled
+                            </span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -195,7 +263,6 @@ const RequestDetailsPage = () => {
           </Card>
         </div>
 
-        {/* Approval Section */}
         <div className="lg:col-span-1 space-y-6">
           {/* Status Timeline */}
           <Card className="p-6">
@@ -249,8 +316,7 @@ const RequestDetailsPage = () => {
                   onChange={(e) => setApprovalRemark(e.target.value)}
                   placeholder="Add remarks..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-                           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
                 <div className="flex gap-3">
                   <button
@@ -268,6 +334,33 @@ const RequestDetailsPage = () => {
                     Reject
                   </button>
                 </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Stock Keeper Actions */}
+          {isStockKeeper && request.status === RequestStatus.APPROVED && (
+            <Card className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Stock Keeper Actions</h3>
+              <div className="space-y-4">
+                <textarea
+                  value={approvalRemark}
+                  onChange={(e) => setApprovalRemark(e.target.value)}
+                  placeholder="Add fulfillment remarks..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+                <button
+                  onClick={() => handleStatusUpdate(RequestStatus.FULLFILLED)}
+                  disabled={isProcessing}
+                  className="w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <PackageCheck className="h-4 w-4" />
+                  Mark Request as Fulfilled
+                </button>
+                <p className="text-sm text-gray-500 text-center">
+                  Mark individual items as fulfilled using the buttons above
+                </p>
               </div>
             </Card>
           )}
