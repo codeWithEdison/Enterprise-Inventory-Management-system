@@ -30,7 +30,7 @@ const mockRequestedItems: RequestedItemResponse[] = [
 export const mockRequests: RequestResponse[] = [
   {
     id: '1',
-    status: RequestStatus.FULLFILLED,
+    status: RequestStatus.APPROVED, 
     approvedBy: mockUsers[0].id,
     remark: 'Emergency department monthly request',
     userId: mockUsers[1].id,
