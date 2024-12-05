@@ -1,292 +1,304 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/inventory/InventoryPage.tsx
-import React, { useEffect, useState } from 'react';
-import { Plus, Filter, AlertTriangle } from 'lucide-react';
-import { mockItems } from '@/lib/mock-data';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
-  ItemResponse, 
-  Status, 
-  CreateItemInput,
-  // ItemFilterParams,  
-  UpdateItemInput
-} from '@/types/api/types';
-
-import Modal, { ModalSize } from '@/components/common/Modal';
-import AddItemForm from './AddItemForm';
+  Plus, 
+  FileDown, 
+  ArrowUp, 
+  ArrowDown,
+  Filter,
+  PackagePlus,
+  PackageMinus,
+  FileUp
+} from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
-import { EmptyState } from '@/components/common/EmptyState';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import Pagination from '@/components/common/Pagination';
-import EditItemForm from './EditItemForm';
-import { cn } from '@/lib/utils';
-
-
-const PAGE_SIZE = 10;
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { mockApi } from '@/services/mockApi';
+import { ItemResponse, Status } from '@/types/api/types';
+import useAuth from '@/hooks/useAuth';
 
 const InventoryPage = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<Status | 'all'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<ItemResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [items, setItems] = useState<ItemResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | Status>('ALL');
+  const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT'>('ALL');
 
-   // Filter items
-   const filteredItems = mockItems.filter(item => {
-    const matchesSearch = !searchQuery || 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const { user } = useAuth();
+  const canManageStock = user?.userRoles[0]?.role.access.items.manageStock;
 
-  // Pagination
-  const totalItems = filteredItems.length;
-  const totalPages = Math.ceil(totalItems / PAGE_SIZE);
-  const currentItems = filteredItems.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
-
-  // Reset to first page when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filterStatus]);
+    const fetchItems = async () => {
+      try {
+        setIsLoading(true);
+        const data = await mockApi.items.getItems();
+        setItems(data);
+      } catch (err) {
+        setError('Failed to load inventory items');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleAddItem = async (_data: CreateItemInput) => {
-    setIsLoading(true);
-    try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setIsAddModalOpen(false);
-    } catch (error) {
-      console.error('Failed to add item:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    fetchItems();
+  }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleEditItem = async (_itemId: string, _data: UpdateItemInput) => {
-    setIsLoading(true);
-    try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setIsEditModalOpen(false);
-      setSelectedItem(null);
-    } catch (error) {
-      console.error('Failed to update item:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (isLoading) return <LoadingScreen />;
 
-  const openEditModal = (item: ItemResponse) => {
-    setSelectedItem(item);
-    setIsEditModalOpen(true);
-  };
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) ||
+                         item.description?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+    const matchesStock = (() => {
+      switch (stockFilter) {
+        case 'LOW':
+          return item.currentStock !== undefined && 
+                 item.currentStock < item.minimumQuantity;
+        case 'OUT':
+          return item.currentStock === 0;
+        default:
+          return true;
+      }
+    })();
+
+    return matchesSearch && matchesStatus && matchesStock;
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Inventory"
-        subtitle="Manage your stock items and inventory levels"
+        subtitle="Manage your inventory items and stock levels"
       >
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700
-                   flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          Add Item
-        </button>
+        <div className="flex gap-3">
+          {canManageStock && (
+            <>
+              <Link
+                to="/inventory/stock-in"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+              >
+                <PackagePlus className="h-4 w-4" />
+                Stock In
+              </Link>
+              <Link
+                to="/inventory/stock-out"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >
+                <PackageMinus className="h-4 w-4" />
+                Stock Out
+              </Link>
+            </>
+          )}
+          <Link
+            to="/inventory/items/new"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add Item
+          </Link>
+          <button 
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <FileDown className="h-4 w-4" />
+            Export
+          </button>
+          <button 
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            <FileUp className="h-4 w-4" />
+            Import
+          </button>
+        </div>
       </PageHeader>
 
-       {/* Add Item Modal */}
-      <Modal
-        isOpen={isAddModalOpen}
-        onClose={() => !isLoading && setIsAddModalOpen(false)}
-        title="Add New Item"
-        widthSizeClass={ModalSize.medium}
-      >
-        <AddItemForm 
-          onSubmit={handleAddItem}
-          onCancel={() => setIsAddModalOpen(false)}
-          isLoading={isLoading}
-        />
-      </Modal>
-
-      {/* Edit Item Modal */}
-      {selectedItem && (
-        <Modal
-          isOpen={isEditModalOpen}
-          onClose={() => !isLoading && setIsEditModalOpen(false)}
-          title="Edit Item"
-          widthSizeClass={ModalSize.medium}
-        >
-          <EditItemForm 
-            item={selectedItem}
-            onSubmit={handleEditItem}
-            onCancel={() => setIsEditModalOpen(false)}
-            isLoading={isLoading}
-          />
-        </Modal>
-      )}
-
-
       {/* Filters */}
-      <Card>
-        <div className="p-4 flex flex-col sm:flex-row gap-4">
+      <Card className="p-4">
+        <div className="flex flex-wrap gap-4">
           <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
+            value={search}
+            onChange={setSearch}
             placeholder="Search items..."
-            className="sm:w-96"
+            className="w-96"
           />
-          <div className="flex items-center gap-4">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as Status | 'all')}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Status</option>
-              {Object.values(Status).map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-            <button className="flex items-center gap-2 px-3 py-2 border border-gray-300
-                             rounded-lg text-sm hover:bg-gray-50">
-              <Filter className="h-4 w-4" />
-              More Filters
-            </button>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as Status | 'ALL')}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="ALL">All Status</option>
+            {Object.values(Status).map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as 'ALL' | 'LOW' | 'OUT')}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="ALL">All Stock Levels</option>
+            <option value="LOW">Low Stock</option>
+            <option value="OUT">Out of Stock</option>
+          </select>
         </div>
       </Card>
 
-      {/* Items List */}
-      <Card>
-        {currentItems.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Item
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock Level
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                  <th className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-              {currentItems.map((item) => (
-                    <ItemRow 
-                      key={item.id} 
-                      item={item}
-                      onEdit={() => openEditModal(item)}
-                    />
-                  ))}
-              </tbody>
-            </table>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={PAGE_SIZE}
-              totalItems={totalItems}
-              onPageChange={setCurrentPage}
-              className="border-t"
-            />
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Total Items</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{items.length}</p>
+            </div>
           </div>
-        ) : (
-          <EmptyState
-            title="No items found"
-            description="Try adjusting your search or filter to find what you're looking for."
-          />
-        )}
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
+              <p className="mt-1 text-2xl font-bold text-yellow-600">
+                {items.filter(item => 
+                  item.currentStock !== undefined && 
+                  item.currentStock < item.minimumQuantity
+                ).length}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Out of Stock</p>
+              <p className="mt-1 text-2xl font-bold text-red-600">
+                {items.filter(item => item.currentStock === 0).length}
+              </p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600">Active Items</p>
+              <p className="mt-1 text-2xl font-bold text-green-600">
+                {items.filter(item => item.status === Status.ACTIVE).length}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Items Table */}
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Item
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Current Stock
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Min. Quantity
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredItems.map((item) => {
+                const isLowStock = item.currentStock !== undefined && 
+                                 item.currentStock < item.minimumQuantity;
+
+                return (
+                  <tr key={item.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Link 
+                        to={`/inventory/items/${item.id}`}
+                        className="flex items-start"
+                      >
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {item.name}
+                          </div>
+                          {item.description && (
+                            <div className="text-sm text-gray-500">
+                              {item.description}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium flex items-center gap-2 ${
+                        isLowStock ? 'text-red-600' : 'text-gray-900'
+                      }`}>
+                        {item.currentStock || 0}
+                        {isLowStock ? (
+                          <ArrowDown className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <ArrowUp className="h-4 w-4 text-green-500" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.minimumQuantity}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="flex justify-center gap-2">
+                        <Link
+                          to={`/inventory/items/${item.id}`}
+                          className="text-primary-600 hover:text-primary-900 font-medium text-sm"
+                        >
+                          View
+                        </Link>
+                        {canManageStock && (
+                          <Link
+                            to={`/inventory/items/${item.id}/edit`}
+                            className="text-primary-600 hover:text-primary-900 font-medium text-sm"
+                          >
+                            Edit
+                          </Link>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
-  );
-};
-
-// ItemRow component
-interface ItemRowProps {
-  item: ItemResponse;
-}
-
-// Updated ItemRow component
-interface ItemRowProps {
-  item: ItemResponse;
-  onEdit: () => void;
-}
-
-const ItemRow: React.FC<ItemRowProps> = ({ item, onEdit }) => {
-  const isLowStock = (item.currentStock || 0) < item.minimumQuantity;
-
-  const getStockLevelClass = () => {
-    if (isLowStock) return 'text-amber-700 bg-amber-50';
-    return 'text-green-700 bg-green-50';
-  };
-
-  return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4">
-        <div>
-          <div className="text-sm font-medium text-gray-900">{item.name}</div>
-          {item.description && (
-            <div className="text-sm text-gray-500">{item.description}</div>
-          )}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-2">
-          {isLowStock && (
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-          )}
-          <div>
-            <div className={cn(
-              "inline-flex text-sm px-2 py-1 rounded-full font-medium",
-              getStockLevelClass()
-            )}>
-              {item.currentStock} units
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Min: {item.minimumQuantity}
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <StatusBadge status={item.status} />
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        {new Date(item.updatedAt).toLocaleDateString()}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-        <button
-          onClick={onEdit}
-          className="text-primary-600 hover:text-primary-900 font-medium 
-                   hover:underline focus:outline-none"
-        >
-          Edit
-        </button>
-      </td>
-    </tr>
   );
 };
 
