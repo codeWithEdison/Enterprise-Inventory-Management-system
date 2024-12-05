@@ -22,6 +22,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { EmptyState } from '@/components/common/EmptyState';
+import { mockRequests } from '@/lib/mock-data';
+import { Link } from 'react-router-dom';
 
 const PAGE_SIZE = 10;
 
@@ -38,7 +40,7 @@ const PendingApprovalsPage = () => {
   });
 
   // Mock data - replace with actual data
-  const pendingRequests: RequestResponse[] = [];
+  const pendingRequests: RequestResponse[] = mockRequests.filter(req =>req.status === RequestStatus.PENDING);
 
   const filteredRequests = pendingRequests.filter(request => {
     const matchesSearch = !searchQuery || 
@@ -191,12 +193,14 @@ const PendingApprovalsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => openApprovalModal(request)}
+                      <Link
+                       to={`/requests/${request.id}`}
+                        // onClick={() => openApprovalModal(request)}
                         className="text-primary-600 hover:text-primary-900"
                       >
                         Review
-                      </button>
+                      </Link>
+                     
                     </td>
                   </tr>
                 ))}
