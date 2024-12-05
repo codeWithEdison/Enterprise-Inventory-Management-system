@@ -1,6 +1,7 @@
 import React, { ReactNode, useEffect, useRef } from "react";
 import { FaArrowLeft } from "react-icons/fa";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export enum ModalSize {
   small = "max-w-sm",
   medium = "max-w-screen-sm",
@@ -10,6 +11,7 @@ export enum ModalSize {
   maxWidth = "max-w-screen h-full",
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export enum ModalMarginTop {
   none = "top-0",
   small = "top-28",
@@ -65,7 +67,7 @@ const Modal: React.FC<ModalProps> = (props) => {
   return (
     <div
       onClick={handleOverlayClick}
-      className="fixed top-0 left-0 w-screen h-screen flex items-center justify-center bg-black bg-opacity-50 z-50"
+      className="fixed top-0  left-0 border-red-600 border-2  w-screen  h-screen flex items-center justify-center bg-black bg-opacity-50 z-50 "
     >
       <div
         ref={modalRef}
