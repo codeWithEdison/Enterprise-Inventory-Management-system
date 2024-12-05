@@ -9,6 +9,7 @@ import {
     mockTransactions, 
     mockRequests, 
     mockNotifications,
+    mockLocations,
     // mockStocks 
   } from '..//lib/mock-data';
   
@@ -22,7 +23,8 @@ import {
     NotificationResponse,
     RequestStatus,
     PaginationParams,
-    NotificationStatus
+    NotificationStatus,
+    CreateTransactionInput
   } from '../types/api/types';
   
   // Helper function to simulate API delay
@@ -105,16 +107,34 @@ import {
       };
       
       return updatedRequest;
-    }
+    },
+    
+    
   };
   
   // Transaction Service
-  export const transactionService = {
-    getTransactions: async (): Promise<TransactionResponse[]> => {
-      await delay(300);
-      return mockTransactions;
-    }
-  };
+ // src/services/mockApi.ts
+export const transactionService = {
+  getTransactions: async (): Promise<TransactionResponse[]> => {
+    await delay(300);
+    return mockTransactions;
+  },
+  create: async (data: CreateTransactionInput): Promise<TransactionResponse> => {
+    await delay(500);
+    // Mock response
+    return {
+      id: Date.now().toString(),
+      ...data,
+      transactedBy: 'current-user-id',
+      item: mockItems.find(item => item.id === data.itemId)!,
+      location: mockLocations.find(location => location.id === data.locationId)!,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+};
+
+  
   
   // Notification Service
   export const notificationService = {
