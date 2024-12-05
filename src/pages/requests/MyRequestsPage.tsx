@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { SearchInput } from '@/components/common/SearchInput';
 import { mockApi } from '@/services/mockApi';
 import { mockRequests } from '@/lib/mock-data';
+import { Link } from 'react-router-dom';
 
 const PAGE_SIZE = 10;
 
@@ -193,12 +194,12 @@ const MyRequestsPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleViewDetails(request)}
+                        <Link to={`/requests/${request.id}`}
+                          // onClick={() => handleViewDetails(request)}
                           className="text-primary-600 hover:text-primary-900"
                         >
                           View
-                        </button>
+                        </Link>
                         {request.status === RequestStatus.PENDING && (
                           <button
                             onClick={() => handleCancelRequest(request.id)}
@@ -234,78 +235,7 @@ const MyRequestsPage = () => {
         )}
       </Card>
 
-      {/* Request Details Modal */}
-      {selectedRequest && (
-        <Modal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          title="Request Details"
-          widthSizeClass={ModalSize.medium}
-        >
-          <div className="space-y-6">
-            {/* Request Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(selectedRequest.status)}
-                <span className={cn(
-                  "px-2.5 py-0.5 rounded-full text-xs font-medium",
-                  getStatusColor(selectedRequest.status)
-                )}>
-                  {selectedRequest.status}
-                </span>
-              </div>
-              <div className="text-sm text-gray-500">
-                {new Date(selectedRequest.createdAt).toLocaleString()}
-              </div>
-            </div>
-
-            {/* Requested Items */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Requested Items
-              </h3>
-              <div className="border rounded-lg divide-y">
-                {selectedRequest.requestedItems.map((item) => (
-                  <div key={item.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {item.item.name}
-                        </div>
-                        {item.item.description && (
-                          <div className="text-sm text-gray-500">
-                            {item.item.description}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Qty: {item.requestedQuantity}
-                        {item.approvedQuantity !== undefined && (
-                          <div className="text-primary-600">
-                            Approved: {item.approvedQuantity}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Remarks */}
-            {selectedRequest.remark && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Remarks
-                </h3>
-                <p className="text-gray-500">
-                  {selectedRequest.remark}
-                </p>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
+     
     </div>
   );
 };
