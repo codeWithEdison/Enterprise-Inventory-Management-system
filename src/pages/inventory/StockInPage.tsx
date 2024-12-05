@@ -1,226 +1,246 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/inventory/StockInPage.tsx
-import React, { useState } from 'react';
-import { 
-  ItemResponse, 
-  LocationResponse,
-  CreateTransactionInput,
-  TransactionType 
-} from '@/types/api/types';
-import { Plus } from 'lucide-react';
-import Modal, { ModalSize } from '@/components/common/Modal';
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { PackageCheck, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
+import Input from '@/components/common/Input';
+import { mockApi } from '@/services/mockApi';
+import { ItemResponse, LocationResponse, TransactionType } from '@/types/api/types';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import Alert, { AlertType } from '@/components/common/Alert';
+import { mockLocations } from '@/lib/mock-data';
 
-interface StockInFormData {
+interface StockInItem {
   itemId: string;
-  locationId: string;
   quantity: number;
+  locationId: string;
   reason?: string;
 }
 
 const StockInPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<StockInFormData>({
-    itemId: '',
-    locationId: '',
-    quantity: 0
-  });
-  const [errors, setErrors] = useState<Partial<Record<keyof StockInFormData, string>>>({});
+  const navigate = useNavigate();
+  const [items, setItems] = useState<ItemResponse[]>([]);
+  const [locations, setLocations] = useState<LocationResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stockInItems, setStockInItems] = useState<StockInItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data - replace with actual data
-  const items: ItemResponse[] = [];
-  const locations: LocationResponse[] = [];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [itemsData, locationsData] = await Promise.all([
+          mockApi.items.getItems(),
+          // Use mockLocations instead of inline mock data
+          Promise.resolve(mockLocations)
+        ]);
+        setItems(itemsData);
+        setLocations(locationsData);
+      } catch (error) {
+        setError('Failed to load data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  
+    fetchData();
+  }, []);
 
-  const validateForm = () => {
-    const newErrors: Partial<Record<keyof StockInFormData, string>> = {};
-    
-    if (!formData.itemId) newErrors.itemId = 'Please select an item';
-    if (!formData.locationId) newErrors.locationId = 'Please select a location';
-    if (formData.quantity <= 0) newErrors.quantity = 'Quantity must be greater than 0';
+  const handleAddItem = () => {
+    if (items.length === 0 || locations.length === 0) return;
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setStockInItems([
+      ...stockInItems,
+      {
+        itemId: items[0].id,
+        quantity: 0,
+        locationId: locations[0].id,
+        reason: ''
+      }
+    ]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setStockInItems(stockInItems.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItem = (index: number, updates: Partial<StockInItem>) => {
+    setStockInItems(
+      stockInItems.map((item, i) => 
+        i === index ? { ...item, ...updates } : item
+      )
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
 
-    setIsLoading(true);
+    // Validation
+    if (stockInItems.length === 0) {
+      setError('Please add at least one item');
+      return;
+    }
+
+    if (stockInItems.some(item => item.quantity <= 0)) {
+      setError('All quantities must be greater than 0');
+      return;
+    }
+
     try {
-      const transactionData: CreateTransactionInput = {
-        itemId: formData.itemId,
-        locationId: formData.locationId,
-        quantity: formData.quantity,
-        transactionType: TransactionType.IN,
-        reason: formData.reason
-      };
+      setIsSubmitting(true);
+      setError(null);
 
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setIsModalOpen(false);
-      // Add success notification
-    } catch (error) {
-      console.error('Failed to create stock in transaction:', error);
-      // Add error notification
+      // Replace with actual API call
+      await Promise.all(
+        stockInItems.map(item => 
+          mockApi.transactions.create({
+            ...item,
+            transactionType: TransactionType.IN
+          })
+        )
+      );
+
+      navigate('/inventory');
+    } catch (err) {
+      setError('Failed to process stock in. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Stock In"
-        subtitle="Record new stock arrivals and inventory additions"
-      >
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700
-                   flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          Record Stock In
-        </button>
-      </PageHeader>
+        subtitle="Record incoming stock"
+      />
 
-      {/* Stock In Form Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => !isLoading && setIsModalOpen(false)}
-        title="Record Stock In"
-        widthSizeClass={ModalSize.medium}
-      >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Select Item
-            </label>
-            <select
-              value={formData.itemId}
-              onChange={(e) => {
-                setFormData(prev => ({ ...prev, itemId: e.target.value }));
-                if (errors.itemId) setErrors(prev => ({ ...prev, itemId: undefined }));
-              }}
-              className={cn(
-                "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
-                "focus:border-primary-500 focus:ring-primary-500 sm:text-sm",
-                errors.itemId && "border-red-300"
-              )}
-              disabled={isLoading}
-            >
-              <option value="">Select an item...</option>
-              {items.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
+      {error && (
+        <Alert
+          alertType={AlertType.DANGER}
+          title={error}
+          close={() => setError(null)}
+        />
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <Card className="p-6">
+          <div className="space-y-6">
+            {/* Stock In Items */}
+            <div className="space-y-4">
+              {stockInItems.map((stockInItem, index) => (
+                <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
+                  {/* Item Selection */}
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Item
+                    </label>
+                    <select
+                      value={stockInItem.itemId}
+                      onChange={(e) => handleUpdateItem(index, { itemId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      {items.map(item => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Quantity */}
+                  <div className="w-32">
+                    <Input
+                      title="Quantity"
+                      type="number"
+                      value={stockInItem.quantity.toString()}
+                      onChange={(e) => handleUpdateItem(index, { 
+                        quantity: parseInt(e.target.value) || 0 
+                      })}
+                      min="1"
+                      className="bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <select
+                      value={stockInItem.locationId}
+                      onChange={(e) => handleUpdateItem(index, { locationId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      {locations.map(location => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Reason */}
+                  <div className="flex-1">
+                    <Input
+                      title="Reason"
+                      type="text"
+                      value={stockInItem.reason || ''}
+                      onChange={(e) => handleUpdateItem(index, { 
+                        reason: e.target.value 
+                      })}
+                      className="bg-gray-50 focus:bg-white"
+                    />
+                  </div>
+
+                  {/* Remove Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(index)}
+                    className="mt-7 p-1 text-gray-400 hover:text-red-500"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               ))}
-            </select>
-            {errors.itemId && (
-              <p className="mt-1 text-sm text-red-600">{errors.itemId}</p>
-            )}
-          </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Select Location
-            </label>
-            <select
-              value={formData.locationId}
-              onChange={(e) => {
-                setFormData(prev => ({ ...prev, locationId: e.target.value }));
-                if (errors.locationId) setErrors(prev => ({ ...prev, locationId: undefined }));
-              }}
-              className={cn(
-                "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
-                "focus:border-primary-500 focus:ring-primary-500 sm:text-sm",
-                errors.locationId && "border-red-300"
-              )}
-              disabled={isLoading}
-            >
-              <option value="">Select a location...</option>
-              {locations.map(location => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-            {errors.locationId && (
-              <p className="mt-1 text-sm text-red-600">{errors.locationId}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Quantity
-            </label>
-            <input
-              type="number"
-              value={formData.quantity}
-              onChange={(e) => {
-                setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }));
-                if (errors.quantity) setErrors(prev => ({ ...prev, quantity: undefined }));
-              }}
-              className={cn(
-                "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
-                "focus:border-primary-500 focus:ring-primary-500 sm:text-sm",
-                errors.quantity && "border-red-300"
-              )}
-              disabled={isLoading}
-            />
-            {errors.quantity && (
-              <p className="mt-1 text-sm text-red-600">{errors.quantity}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Reason/Notes
-            </label>
-            <textarea
-              value={formData.reason || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-              rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm
-                       focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3">
+            {/* Add Item Button */}
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
-              disabled={isLoading}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium
-                       text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+              onClick={handleAddItem}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium
-                       hover:bg-primary-700 focus:outline-none disabled:opacity-50"
-            >
-              {isLoading ? 'Recording...' : 'Record Stock In'}
+              <Plus className="h-4 w-4" />
+              Add Item
             </button>
           </div>
-        </form>
-      </Modal>
+        </Card>
 
-      {/* Recent Stock In Transactions */}
-      <Card>
-        <div className="p-4">
-          <h2 className="text-lg font-medium text-gray-900">Recent Stock In Transactions</h2>
-          {/* Add transaction table or list here */}
+        {/* Submit Button */}
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || stockInItems.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+          >
+            <PackageCheck className="h-4 w-4" />
+            {isSubmitting ? 'Processing...' : 'Record Stock In'}
+          </button>
         </div>
-      </Card>
+      </form>
     </div>
   );
 };
