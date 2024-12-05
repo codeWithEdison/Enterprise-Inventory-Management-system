@@ -1,8 +1,8 @@
 import { ChartCard } from '../ChartCard';
 import { StockOverview } from './StockOverview';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  PieChart, Pie, Cell 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  PieChart, Pie, Cell, ResponsiveContainer
 } from 'recharts';
 
 export const StockKeeperDashboard = () => {
@@ -54,47 +54,51 @@ export const StockKeeperDashboard = () => {
 
   return (
     <>
+      <h2 className="text-2xl font-semibold mb-4">Stock Overview</h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Stock Movement">
-          <BarChart data={stockMovementData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="in" fill="#10B981" name="Stock In" />
-            <Bar dataKey="out" fill="#EF4444" name="Stock Out" />
-          </BarChart>
+        <ChartCard title="Stock Movement" >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={stockMovementData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip contentStyle={{ background: 'white', border: '1px solid #ccc', borderRadius: '8px' }} />
+              <Legend />
+              <Line type="monotone" dataKey="in" stroke="#10B981" strokeWidth={2} activeDot={{ r: 8 }} name="Stock In" />
+              <Line type="monotone" dataKey="out" stroke="#EF4444" strokeWidth={2} activeDot={{ r: 8 }} name="Stock Out" />
+            </LineChart>
+          </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Low Stock by Category">
-          <PieChart>
-            <Pie
-              data={lowStockData}
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              fill="#8884d8"
-              label
-              dataKey="value"
-            >
-              {[
-                '#EF4444',
-                '#F59E0B',
-                '#10B981',
-                '#6366F1',
-              ].map((color, index) => (
-                <Cell key={`cell-${index}`} fill={color} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
+        <ChartCard title="Low Stock by Category" >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={lowStockData}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {lowStockData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={['#EF4444', '#F59E0B', '#10B981', '#6366F1'][index % 4]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </ChartCard>
       </div>
 
-      {/* Quick Stock Overview */}
-      <div className="mt-6">
+      {/* Quick Stock Metrics */}
+      <div className="mt-8">
+        <h3 className="text-xl font-semibold mb-4">Stock Metrics</h3>
         <StockOverview metrics={stockMetrics} />
       </div>
     </>
