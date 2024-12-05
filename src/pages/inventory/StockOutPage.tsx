@@ -1,355 +1,298 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/inventory/StockOutPage.tsx
 import React, { useState, useEffect } from 'react';
-
-import { 
-  ItemResponse, 
-  LocationResponse,
-  CreateTransactionInput,
-  TransactionType,
-  StockResponse, 
-  TransactionResponse
-} from '@/types/api/types';
-import { Plus, AlertTriangle } from 'lucide-react';
-import Modal, { ModalSize } from '@/components/common/Modal';
-import { cn } from '@/lib/utils';
-import Pagination from '@/components/common/Pagination';
+import { useNavigate } from 'react-router-dom';
+import { PackageMinus, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
-import { SearchInput } from '@/components/common/SearchInput';
-import TransactionsTable from './TransactionsTable';
-import { mockTransactions } from '@/lib/mock-data';
+import Input from '@/components/common/Input';
+import { mockApi } from '@/services/mockApi';
+import { ItemResponse, LocationResponse, TransactionType } from '@/types/api/types';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import Alert, { AlertType } from '@/components/common/Alert';
+import { mockLocations } from '@/lib/mock-data';
 
-interface StockOutFormData {
+interface StockOutItem {
   itemId: string;
-  locationId: string;
   quantity: number;
+  locationId: string;
   reason?: string;
 }
 
 const StockOutPage = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedItemStock, setSelectedItemStock] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
+  const [items, setItems] = useState<ItemResponse[]>([]);
+  const [locations, setLocations] = useState<LocationResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stockOutItems, setStockOutItems] = useState<StockOutItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [itemsData, locationsData] = await Promise.all([
+          mockApi.items.getItems(),
+          // Use mockLocations instead of inline mock data
+          Promise.resolve(mockLocations)
+        ]);
+        setItems(itemsData);
+        setLocations(locationsData);
+      } catch (error) {
+        setError('Failed to load data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
   
-  const [formData, setFormData] = useState<StockOutFormData>({
-    itemId: '',
-    locationId: '',
-    quantity: 0
-  });
+    fetchData();
+  }, []);
 
-  const [errors, setErrors] = useState<Partial<Record<keyof StockOutFormData, string>>>({});
+  const handleAddItem = () => {
+    if (items.length === 0 || locations.length === 0) return;
 
-  // Mock data - replace with actual data
-  const items: ItemResponse[] = [];
-  const locations: LocationResponse[] = [];
-  const stocks: StockResponse[] = [];
+    setStockOutItems([
+      ...stockOutItems,
+      {
+        itemId: items[0].id,
+        quantity: 0,
+        locationId: locations[0].id,
+        reason: ''
+      }
+    ]);
+  };
 
-  const PAGE_SIZE = 10;
+  const handleRemoveItem = (index: number) => {
+    setStockOutItems(stockOutItems.filter((_, i) => i !== index));
+  };
 
-  const validateForm = () => {
-    const newErrors: Partial<Record<keyof StockOutFormData, string>> = {};
-    
-    if (!formData.itemId) {
-      newErrors.itemId = 'Please select an item';
+  const handleUpdateItem = (index: number, updates: Partial<StockOutItem>) => {
+    setStockOutItems(
+      stockOutItems.map((item, i) => 
+        i === index ? { ...item, ...updates } : item
+      )
+    );
+  };
+
+  const validateStockLevels = (): boolean => {
+    for (const stockOutItem of stockOutItems) {
+      const item = items.find(i => i.id === stockOutItem.itemId);
+      if (!item) continue;
+
+      if (!item.currentStock || stockOutItem.quantity > item.currentStock) {
+        setError(`Insufficient stock for ${item.name}. Available: ${item.currentStock}`);
+        return false;
+      }
     }
-    
-    if (!formData.locationId) {
-      newErrors.locationId = 'Please select location';
-    }
-    
-    if (formData.quantity <= 0) {
-      newErrors.quantity = 'Quantity must be greater than 0';
-    }
-    
-    if (selectedItemStock !== null && formData.quantity > selectedItemStock) {
-      newErrors.quantity = 'Release quantity cannot exceed available stock';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
 
-    setIsLoading(true);
+    // Validation
+    if (stockOutItems.length === 0) {
+      setError('Please add at least one item');
+      return;
+    }
+
+    if (stockOutItems.some(item => item.quantity <= 0)) {
+      setError('All quantities must be greater than 0');
+      return;
+    }
+
+    if (!validateStockLevels()) {
+      return;
+    }
+
     try {
-      const transactionData: CreateTransactionInput = {
-        itemId: formData.itemId,
-        locationId: formData.locationId,
-        quantity: formData.quantity,
-        transactionType: TransactionType.OUT,
-        reason: formData.reason
-      };
+      setIsSubmitting(true);
+      setError(null);
 
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setIsModalOpen(false);
-      // Add success notification
-    } catch (error) {
-      console.error('Failed to create stock out transaction:', error);
-      // Add error notification
+      // Replace with actual API call
+      await Promise.all(
+        stockOutItems.map(item => 
+          mockApi.transactions.create({
+            ...item,
+            transactionType: TransactionType.OUT
+          })
+        )
+      );
+
+      navigate('/inventory');
+    } catch (err) {
+      setError('Failed to process stock out. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleLocationChange = (locationId: string) => {
-    setFormData(prev => ({ ...prev, locationId, quantity: 0 }));
-    const stock = stocks.find(s => 
-      s.itemId === formData.itemId && 
-      s.locationId === locationId
-    );
-    setSelectedItemStock(stock?.balance || 0);
-    if (errors.locationId) {
-      setErrors(prev => ({ ...prev, locationId: undefined }));
-    }
-  };
-
-  const [filterStatus, setFilterStatus] = useState<'all' | TransactionType>('all');
-
-// Filter transactions
-const filteredTransactions = mockTransactions
-  .filter(transaction => {
-    const matchesSearch = !searchQuery || 
-      transaction.item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.reason?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      transaction.location.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesType = filterStatus === 'all' || 
-      transaction.transactionType === filterStatus;
-    
-    return matchesSearch && matchesType;
-  })
-  .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-const handleViewDetails = (transaction: TransactionResponse) => {
-  // Implement view details modal here
-  console.log('View transaction details:', transaction);
-};
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Stock Out"
-        subtitle="Record stock releases and inventory reductions"
-      >
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700
-                   flex items-center gap-2 text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          Record Stock Out
-        </button>
-      </PageHeader>
+        subtitle="Record outgoing stock"
+      />
 
-      {/* Stock Out Form Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => !isLoading && setIsModalOpen(false)}
-        title="Record Stock Out"
-        widthSizeClass={ModalSize.medium}
-      >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Item Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Select Item
-            </label>
-            <select
-              value={formData.itemId}
-              onChange={(e) => {
-                setFormData(prev => ({ 
-                  ...prev, 
-                  itemId: e.target.value,
-                  locationId: '',
-                  quantity: 0
-                }));
-                setSelectedItemStock(null);
-                if (errors.itemId) setErrors(prev => ({ ...prev, itemId: undefined }));
-              }}
-              className={cn(
-                "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
-                "focus:border-primary-500 focus:ring-primary-500 sm:text-sm",
-                errors.itemId && "border-red-300"
-              )}
-              disabled={isLoading}
-            >
-              <option value="">Select an item...</option>
-              {items.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            {errors.itemId && (
-              <p className="mt-1 text-sm text-red-600">{errors.itemId}</p>
-            )}
-          </div>
+      {error && (
+        <Alert
+          alertType={ AlertType.DANGER}
+          title={error}
+          close={() => setError(null)}
+        />
+      )}
 
-          {/* Location Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              From Location
-            </label>
-            <select
-              value={formData.locationId}
-              onChange={(e) => handleLocationChange(e.target.value)}
-              className={cn(
-                "mt-1 block w-full rounded-md border-gray-300 shadow-sm",
-                "focus:border-primary-500 focus:ring-primary-500 sm:text-sm",
-                errors.locationId && "border-red-300"
-              )}
-              disabled={isLoading || !formData.itemId}
-            >
-              <option value="">Select location...</option>
-              {locations.map(location => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-            {errors.locationId && (
-              <p className="mt-1 text-sm text-red-600">{errors.locationId}</p>
-            )}
-            {selectedItemStock !== null && (
-              <p className="mt-1 text-sm text-gray-500">
-                Available stock: {selectedItemStock} units
-              </p>
-            )}
-          </div>
+      <form onSubmit={handleSubmit}>
+        <Card className="p-6">
+          <div className="space-y-6">
+            {/* Stock Out Items */}
+            <div className="space-y-4">
+              {stockOutItems.map((stockOutItem, index) => {
+                const selectedItem = items.find(i => i.id === stockOutItem.itemId);
+                const isLowStock = selectedItem?.currentStock !== undefined && 
+                                 stockOutItem.quantity > selectedItem.currentStock;
 
-          {/* Quantity */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Quantity to Release
-            </label>
-            <div className="mt-1 relative rounded-md shadow-sm">
-              <input
-                type="number"
-                min="1"
-                max={selectedItemStock || undefined}
-                value={formData.quantity}
-                onChange={(e) => {
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    quantity: parseInt(e.target.value) || 0 
-                  }));
-                  if (errors.quantity) {
-                    setErrors(prev => ({ ...prev, quantity: undefined }));
-                  }
-                }}
-                className={cn(
-                  "block w-full rounded-md sm:text-sm",
-                  "border-gray-300 focus:ring-primary-500 focus:border-primary-500",
-                  errors.quantity && "border-red-300"
-                )}
-                disabled={isLoading || !formData.locationId}
-              />
-              {selectedItemStock !== null && formData.quantity > selectedItemStock && (
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                </div>
-              )}
+                return (
+                  <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
+                    {/* Item Selection */}
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Item
+                      </label>
+                      <select
+                        value={stockOutItem.itemId}
+                        onChange={(e) => handleUpdateItem(index, { itemId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        {items.map(item => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} ({item.currentStock || 0} in stock)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="w-32">
+                      <Input
+                        title="Quantity"
+                        type="number"
+                        value={stockOutItem.quantity.toString()}
+                        onChange={(e) => handleUpdateItem(index, { 
+                          quantity: parseInt(e.target.value) || 0 
+                        })}
+                        min="1"
+                        className="bg-gray-50 focus:bg-white"
+                        error={isLowStock ? 'Insufficient stock' : undefined}
+                      />
+                      {selectedItem && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Available: {selectedItem.currentStock || 0}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location
+                      </label>
+                      <select
+                        value={stockOutItem.locationId}
+                        onChange={(e) => handleUpdateItem(index, { locationId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        {locations.map(location => (
+                          <option key={location.id} value={location.id}>
+                            {location.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="flex-1">
+                      <Input
+                        title="Reason"
+                        type="text"
+                        value={stockOutItem.reason || ''}
+                        onChange={(e) => handleUpdateItem(index, { 
+                          reason: e.target.value 
+                        })}
+                        className="bg-gray-50 focus:bg-white"
+                        // placeholder="e.g., Department request, Damage, etc."
+                      />
+                    </div>
+
+                    {/* Remove Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(index)}
+                      className="mt-7 p-1 text-gray-400 hover:text-red-500"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-            {errors.quantity && (
-              <p className="mt-1 text-sm text-red-600">{errors.quantity}</p>
-            )}
-          </div>
 
-          {/* Reason/Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Reason/Notes
-            </label>
-            <textarea
-              value={formData.reason || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-              rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm
-                       focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              disabled={isLoading}
-              placeholder="Enter reason for stock out..."
-            />
-          </div>
-
-          <div className="flex justify-end gap-3">
+            {/* Add Item Button */}
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
-              disabled={isLoading}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium
-                       text-gray-700 hover:bg-gray-50 focus:outline-none disabled:opacity-50"
+              onClick={handleAddItem}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              Cancel
+              <Plus className="h-4 w-4" />
+              Add Item
             </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium
-                       hover:bg-primary-700 focus:outline-none disabled:opacity-50"
-            >
-              {isLoading ? 'Processing...' : 'Record Stock Out'}
-            </button>
-          </div>
-        </form>
-      </Modal>
 
-      {/* Recent Stock Out Transactions */}
-      <Card>
-        <div className="p-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h2 className="text-lg font-medium text-gray-900">
-              Recent Stock Out Transactions
-            </h2>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search transactions..."
-                className="w-full sm:w-64"
-              />
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as 'all' | TransactionType)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Types</option>
-                {Object.values(TransactionType).map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
+            {/* Stock Level Warning */}
+            {stockOutItems.some(item => {
+              const selectedItem = items.find(i => i.id === item.itemId);
+              return selectedItem?.currentStock !== undefined && 
+                     item.quantity > selectedItem.currentStock;
+            }) && (
+              <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-700 rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <p className="text-sm">
+                  Some items exceed available stock levels. Please adjust quantities.
+                </p>
+              </div>
+            )}
           </div>
+        </Card>
 
-          <div className="mt-4">
-            <TransactionsTable
-              transactions={filteredTransactions}
-              isLoading={isLoading}
-              onViewDetails={handleViewDetails}
-            />
-          </div>
-
-          {/* Only show pagination if we have items */}
-          {filteredTransactions.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredTransactions.length / PAGE_SIZE)}
-              onPageChange={setCurrentPage}
-              pageSize={PAGE_SIZE}
-              totalItems={filteredTransactions.length}
-              className="mt-4"
-            />
-          )}
+        {/* Submit Button */}
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={
+              isSubmitting || 
+              stockOutItems.length === 0 ||
+              stockOutItems.some(item => {
+                const selectedItem = items.find(i => i.id === item.itemId);
+                return selectedItem?.currentStock !== undefined && 
+                       item.quantity > selectedItem.currentStock;
+              })
+            }
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+          >
+            <PackageMinus className="h-4 w-4" />
+            {isSubmitting ? 'Processing...' : 'Record Stock Out'}
+          </button>
         </div>
-      </Card>
+      </form>
     </div>
   );
 };
