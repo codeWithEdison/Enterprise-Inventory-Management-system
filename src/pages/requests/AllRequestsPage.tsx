@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/requests/AllRequestsPage.tsx
 import React, { useState } from "react";
@@ -24,6 +25,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/common/Card";
 import { SearchInput } from "@/components/common/SearchInput";
 import { EmptyState } from "@/components/common/EmptyState";
+import { mockRequests } from "@/lib/mock-data";
+import { Link } from "react-router-dom";
 
 const PAGE_SIZE = 10;
 
@@ -51,7 +54,7 @@ const AllRequestsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Mock data - replace with actual data
-  const allRequests: RequestResponse[] = [];
+  const allRequests: RequestResponse[] = mockRequests; 
   const departments: DepartmentResponse[] = [];
 
   const getStatusIcon = (status: RequestStatus) => {
@@ -304,12 +307,12 @@ const AllRequestsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleViewDetails(request)}
+                      <Link  to={`${request.id}`}
+                        // onClick={() => handleViewDetails(request)}
                         className="text-primary-600 hover:text-primary-900"
                       >
                         View
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -335,188 +338,7 @@ const AllRequestsPage = () => {
         )}
       </Card>
 
-      {/* Request Details Modal - Same as in MyRequestsPage */}
-      {selectedRequest && (
-        <Modal
-          isOpen={isDetailModalOpen}
-          onClose={() => setIsDetailModalOpen(false)}
-          title="Request Details"
-          widthSizeClass={ModalSize.medium}
-        >
-          <div className="space-y-6">
-            {/* Request Status */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(selectedRequest.status)}
-                <span
-                  className={cn(
-                    "px-2.5 py-0.5 rounded-full text-xs font-medium",
-                    getStatusColor(selectedRequest.status)
-                  )}
-                >
-                  {selectedRequest.status}
-                </span>
-              </div>
-              <div className="text-sm text-gray-500">
-                {new Date(selectedRequest.createdAt).toLocaleString()}
-              </div>
-            </div>
-
-            {/* Requester Info */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  {selectedRequest.user.firstName}{" "}
-                  {selectedRequest.user.lastName}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {selectedRequest.user.userRoles[0]?.department.name}
-                </p>
-              </div>
-            </div>
-
-            {/* Requested Items */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Requested Items
-              </h3>
-              <div className="border rounded-lg divide-y">
-                {selectedRequest.requestedItems.map((item) => (
-                  <div key={item.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {item.item.name}
-                        </div>
-                        {item.item.description && (
-                          <div className="text-sm text-gray-500">
-                            {item.item.description}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        <div>Requested: {item.requestedQuantity} units</div>
-                        {item.approvedQuantity !== undefined && (
-                          <div className="text-primary-600">
-                            Approved: {item.approvedQuantity} units
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Remarks */}
-            {(selectedRequest.remark || selectedRequest.approvedBy) && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Additional Information
-                </h3>
-                {selectedRequest.remark && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700">
-                      Remark
-                    </h4>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {selectedRequest.remark}
-                    </p>
-                  </div>
-                )}
-                {selectedRequest.approvedBy && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700">
-                      Processed By
-                    </h4>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {selectedRequest.approvedBy}
-                      <span className="text-gray-400 mx-2">•</span>
-                      {new Date(selectedRequest.updatedAt).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Timeline */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Request Timeline
-              </h3>
-              <div className="flow-root">
-                <ul className="-mb-8">
-                  {/* Created */}
-                  <li>
-                    <div className="relative pb-8">
-                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
-                      <div className="relative flex space-x-3">
-                        <div>
-                          <span className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center">
-                            <Clock className="h-5 w-5 text-white" />
-                          </span>
-                        </div>
-                        <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              Request created
-                            </p>
-                          </div>
-                          <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                            {new Date(
-                              selectedRequest.createdAt
-                            ).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-
-                  {/* Approved/Rejected */}
-                  {selectedRequest.approvedBy && (
-                    <li>
-                      <div className="relative pb-8">
-                        <div className="relative flex space-x-3">
-                          <div>
-                            <span
-                              className={cn(
-                                "h-8 w-8 rounded-full flex items-center justify-center",
-                                selectedRequest.status ===
-                                  RequestStatus.APPROVED
-                                  ? "bg-green-500"
-                                  : "bg-red-500"
-                              )}
-                            >
-                              {selectedRequest.status ===
-                              RequestStatus.APPROVED ? (
-                                <CheckCircle2 className="h-5 w-5 text-white" />
-                              ) : (
-                                <XCircle className="h-5 w-5 text-white" />
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                            <div>
-                              <p className="text-sm text-gray-500">
-                                Request {selectedRequest.status.toLowerCase()}
-                              </p>
-                            </div>
-                            <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                              {new Date(
-                                selectedRequest.updatedAt
-                              ).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
+     
     </div>
   );
 };
