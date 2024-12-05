@@ -84,17 +84,24 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
     menu_type: MENU_TYPE.ACTIVITIES,
     roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER],
     subMenus: [
+      
+      {
+        title: "Items List",
+        label: "Manage Items",
+        url: "/inventory/items", 
+        roles: [RoleName.ADMIN]
+      },
+      {
+        title: "Stock",
+        label: "Manage Items",
+        url: "/inventory", 
+        roles: [RoleName.STOCK_KEEPER]
+      },
       {
         title: "Stock In",
         label: "Stock Intake",
         url: "/inventory/stock-in",
         roles: [RoleName.STOCK_KEEPER]
-      },
-      {
-        title: "Items List",
-        label: "Manage Items",
-        url: "/inventory/items", 
-        roles: [RoleName.ADMIN, RoleName.STOCK_KEEPER]
       },
       {
         title: "Stock Out",
