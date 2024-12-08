@@ -1,15 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/users/UsersListPage.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Filter, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { mockApi } from '@/services/mockApi';
-import { UserResponse, Status, RoleName } from '@/types/api/types';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { UserResponse, Status, RoleName } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
+import Alert, { AlertType } from '@/components/common/Alert';
 
 const UsersListPage = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -23,47 +24,50 @@ const UsersListPage = () => {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.users.getUsers();
-        setUsers(data);
-      } catch (err) {
-        setError('Failed to load users');
+        const { data } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users', {
+          params: {
+            page: 1,
+            limit: 10,
+            sortOrder: 'desc',
+            search: search.trim() || undefined,
+            role: selectedRole === 'ALL' ? undefined : selectedRole,
+            status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+          },
+        });
+        setUsers(data.users);
+      } catch (err: any) {
+        if (err.message === 'search is not allowed to be empty') {
+          setError('Please enter a search term.');
+        } else {
+          setError(err.message || 'Failed to load users');
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUsers();
-  }, []);
+  }, [search, selectedRole, selectedStatus]);
 
   if (isLoading) return <LoadingScreen />;
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500">{error}</p>
+      <div className="space-y-6">
+        <Alert
+          alertType={AlertType.DANGER}
+          title={error}
+          close={() => setError(null)}
+        />
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+          className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
         >
           Try Again
         </button>
       </div>
     );
   }
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      user.firstName.toLowerCase().includes(search.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-    
-    const matchesRole = selectedRole === 'ALL' || 
-      user.userRoles.some(ur => ur.role.name === selectedRole);
-    
-    const matchesStatus = selectedStatus === 'ALL' || user.status === selectedStatus;
-
-    return matchesSearch && matchesRole && matchesStatus;
-  });
 
   return (
     <div className="space-y-6">
@@ -95,8 +99,10 @@ const UsersListPage = () => {
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="ALL">All Roles</option>
-            {Object.values(RoleName).map(role => (
-              <option key={role} value={role}>{role}</option>
+            {Object.values(RoleName).map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
             ))}
           </select>
           <select
@@ -105,8 +111,10 @@ const UsersListPage = () => {
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="ALL">All Status</option>
-            {Object.values(Status).map(status => (
-              <option key={status} value={status}>{status}</option>
+            {Object.values(Status).map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
             ))}
           </select>
         </div>
@@ -139,13 +147,14 @@ const UsersListPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                         <span className="text-sm font-medium text-primary-700">
-                          {user.firstName[0]}{user.lastName[0]}
+                          {user.firstName[0]}
+                          {user.lastName[0]}
                         </span>
                       </div>
                       <div className="ml-4">
@@ -160,12 +169,12 @@ const UsersListPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {user.userRoles.map(ur => ur.role.name).join(', ')}
+                      {user.userRoles.map((ur) => ur.role.name).join(', ')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {user.userRoles.map(ur => ur.department.name).join(', ')}
+                      {user.userRoles.map((ur) => ur.department.name).join(', ')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
