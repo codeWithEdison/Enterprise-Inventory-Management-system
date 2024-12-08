@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// src/pages/inventory/StockTransferPage.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -12,11 +12,10 @@ import {
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import Input from '@/components/common/Input';
-import { mockApi } from '@/services/mockApi';
-import { ItemResponse, LocationResponse } from '@/types/api/types';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import Alert, { AlertType } from '@/components/common/Alert';
-import { mockLocations } from '@/lib/mock-data';
+import axiosInstance from '@/lib/axios';
+import { ItemResponse, LocationResponse, StockResponse } from '@/types/api/types';
 
 interface TransferItem {
   itemId: string;
@@ -24,6 +23,8 @@ interface TransferItem {
   fromLocationId: string;
   toLocationId: string;
   reason?: string;
+  availableStock?: number;
+  isCheckingStock?: boolean;
 }
 
 const StockTransferPage = () => {
@@ -39,14 +40,18 @@ const StockTransferPage = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [itemsData, locationsData] = await Promise.all([
-          mockApi.items.getItems(),
-          Promise.resolve(mockLocations) 
+        const [itemsResponse, locationsResponse] = await Promise.all([
+          axiosInstance.get<ItemResponse[]>('/items'),
+          axiosInstance.get<LocationResponse[]>('/locations')
         ]);
-        setItems(itemsData);
-        setLocations(locationsData);
-      } catch (error) {
-        setError('Failed to load data');
+
+        const activeItems = itemsResponse.data.filter(item => item.status === 'ACTIVE');
+        const activeLocations = locationsResponse.data.filter(location => location.status === 'ACTIVE');
+
+        setItems(activeItems);
+        setLocations(activeLocations);
+      } catch (error: any) {
+        setError(error.message || 'Failed to load data');
       } finally {
         setIsLoading(false);
       }
@@ -55,63 +60,93 @@ const StockTransferPage = () => {
     fetchData();
   }, []);
 
+  const checkItemStock = async (itemId: string, locationId: string): Promise<number> => {
+    try {
+      const response = await axiosInstance.get<StockResponse[]>(`/stock/${itemId}`);
+      const locationStock = response.data.find(stock => stock.locationId === locationId);
+      return locationStock?.balance || 0;
+    } catch (error) {
+      console.error('Error checking stock:', error);
+      return 0;
+    }
+  };
+
+  const updateItemStock = async (index: number) => {
+    const item = transferItems[index];
+    setTransferItems(prev => prev.map((i, idx) => 
+      idx === index ? { ...i, isCheckingStock: true } : i
+    ));
+
+    const availableStock = await checkItemStock(item.itemId, item.fromLocationId);
+    
+    setTransferItems(prev => prev.map((i, idx) => 
+      idx === index ? { 
+        ...i, 
+        availableStock,
+        isCheckingStock: false
+      } : i
+    ));
+  };
+
   const handleAddItem = () => {
     if (items.length === 0 || locations.length < 2) return;
 
-    setTransferItems([
-      ...transferItems,
-      {
-        itemId: items[0].id,
-        quantity: 0,
-        fromLocationId: locations[0].id,
-        toLocationId: locations[1].id,
-        reason: ''
-      }
-    ]);
+    const newItem = {
+      itemId: items[0].id,
+      quantity: 1,
+      fromLocationId: locations[0].id,
+      toLocationId: locations[1].id,
+      reason: ''
+    };
+
+    setTransferItems(prev => [...prev, newItem]);
+    updateItemStock(transferItems.length); // Check stock for new item
   };
 
   const handleRemoveItem = (index: number) => {
-    setTransferItems(transferItems.filter((_, i) => i !== index));
+    setTransferItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleUpdateItem = (index: number, updates: Partial<TransferItem>) => {
-    setTransferItems(
-      transferItems.map((item, i) => 
-        i === index ? { ...item, ...updates } : item
-      )
-    );
+  const handleUpdateItem = async (index: number, updates: Partial<TransferItem>) => {
+    setTransferItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, ...updates } : item
+    ));
+
+    // If item or source location changed, check new stock level
+    if (updates.itemId || updates.fromLocationId) {
+      await updateItemStock(index);
+    }
   };
 
-  const validateTransfer = (): boolean => {
-    for (const transferItem of transferItems) {
-      if (transferItem.fromLocationId === transferItem.toLocationId) {
-        setError('Source and destination locations must be different');
-        return false;
+  const validateTransfer = (): string | null => {
+    if (transferItems.length === 0) {
+      return 'Please add at least one item to transfer';
+    }
+
+    for (const item of transferItems) {
+      if (item.fromLocationId === item.toLocationId) {
+        return 'Source and destination locations must be different';
       }
 
-      const item = items.find(i => i.id === transferItem.itemId);
-      if (!item?.currentStock || transferItem.quantity > item.currentStock) {
-        setError(`Insufficient stock for ${item?.name}. Available: ${item?.currentStock}`);
-        return false;
+      if (item.quantity <= 0) {
+        return 'Transfer quantity must be greater than 0';
       }
 
-      if (transferItem.quantity <= 0) {
-        setError('Transfer quantity must be greater than 0');
-        return false;
+      if (item.availableStock !== undefined && item.quantity > item.availableStock) {
+        const selectedItem = items.find(i => i.id === item.itemId);
+        return `Insufficient stock for ${selectedItem?.name}. Available: ${item.availableStock}`;
       }
     }
-    return true;
+
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (transferItems.length === 0) {
-      setError('Please add at least one item to transfer');
-      return;
-    }
-
-    if (!validateTransfer()) {
+    
+    const validationError = validateTransfer();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -119,16 +154,23 @@ const StockTransferPage = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // Add your stock transfer logic here
-      // For each item:
-      // 1. Reduce stock in source location
-      // 2. Increase stock in destination location
-      // 3. Create transfer record
+      const requestBody = {
+        transfers: transferItems.map(({ itemId, quantity, fromLocationId, toLocationId, reason }) => ({
+          itemId,
+          quantity,
+          fromLocationId,
+          toLocationId,
+          reason
+        }))
+      };
 
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Mock API call
-      navigate('/inventory');
-    } catch (err) {
-      setError('Failed to process stock transfer. Please try again.');
+      await axiosInstance.post('/stock/transfer', requestBody);
+      
+      navigate('/inventory', { 
+        state: { message: 'Stock transfer processed successfully' } 
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to process stock transfer. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -161,16 +203,14 @@ const StockTransferPage = () => {
       <form onSubmit={handleSubmit}>
         <Card className="p-6">
           <div className="space-y-6">
-            {/* Transfer Items */}
             <div className="space-y-4">
               {transferItems.map((transferItem, index) => {
                 const selectedItem = items.find(i => i.id === transferItem.itemId);
-                const isInsufficientStock = selectedItem?.currentStock !== undefined && 
-                                          transferItem.quantity > selectedItem.currentStock;
+                const isInsufficientStock = transferItem.availableStock !== undefined && 
+                                          transferItem.quantity > transferItem.availableStock;
 
                 return (
                   <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
-                    {/* Item Selection */}
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Item
@@ -182,13 +222,12 @@ const StockTransferPage = () => {
                       >
                         {items.map(item => (
                           <option key={item.id} value={item.id}>
-                            {item.name} ({item.currentStock || 0} in stock)
+                            {item.name}
                           </option>
                         ))}
                       </select>
                     </div>
 
-                    {/* Source Location */}
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         From Location
@@ -206,7 +245,6 @@ const StockTransferPage = () => {
                       </select>
                     </div>
 
-                    {/* Destination Location */}
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         To Location
@@ -227,7 +265,6 @@ const StockTransferPage = () => {
                       </select>
                     </div>
 
-                    {/* Quantity */}
                     <div className="w-32">
                       <Input
                         title="Quantity"
@@ -240,28 +277,26 @@ const StockTransferPage = () => {
                         className="bg-gray-50 focus:bg-white"
                         error={isInsufficientStock ? 'Insufficient stock' : undefined}
                       />
-                      {selectedItem && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          Available: {selectedItem.currentStock || 0}
-                        </p>
-                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        {transferItem.isCheckingStock ? (
+                          "Checking stock..."
+                        ) : (
+                          `Available: ${transferItem.availableStock || 0}`
+                        )}
+                      </p>
                     </div>
 
-                    {/* Reason */}
                     <div className="flex-1">
                       <Input
                         title="Reason"
                         type="text"
                         value={transferItem.reason || ''}
-                        onChange={(e) => handleUpdateItem(index, { 
-                          reason: e.target.value 
-                        })}
+                        onChange={(e) => handleUpdateItem(index, { reason: e.target.value })}
+                        // placeholder="Optional"
                         className="bg-gray-50 focus:bg-white"
-                        // placeholder="Reason for transfer"
                       />
                     </div>
 
-                    {/* Remove Button */}
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
@@ -282,7 +317,6 @@ const StockTransferPage = () => {
               )}
             </div>
 
-            {/* Add Item Button */}
             <button
               type="button"
               onClick={handleAddItem}
@@ -292,7 +326,6 @@ const StockTransferPage = () => {
               Add Item
             </button>
 
-            {/* Transfer Direction */}
             {transferItems.length > 0 && (
               <div className="flex items-center justify-center gap-4 p-4 bg-gray-50 rounded-lg">
                 <div className="text-center">
@@ -311,12 +344,9 @@ const StockTransferPage = () => {
               </div>
             )}
 
-            {/* Validation Warnings */}
-            {transferItems.some(item => {
-              const selectedItem = items.find(i => i.id === item.itemId);
-              return selectedItem?.currentStock !== undefined && 
-                     item.quantity > selectedItem.currentStock;
-            }) && (
+            {transferItems.some(item => 
+              item.availableStock !== undefined && item.quantity > item.availableStock
+            ) && (
               <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-700 rounded-lg">
                 <AlertTriangle className="h-5 w-5 text-yellow-500" />
                 <p className="text-sm">
@@ -327,7 +357,6 @@ const StockTransferPage = () => {
           </div>
         </Card>
 
-        {/* Submit Button */}
         <div className="flex justify-end gap-3 mt-6">
           <button
             type="button"
@@ -341,13 +370,9 @@ const StockTransferPage = () => {
             disabled={
               isSubmitting || 
               transferItems.length === 0 ||
-              transferItems.some(item => {
-                const selectedItem = items.find(i => i.id === item.itemId);
-                return (
-                  selectedItem?.currentStock !== undefined && 
-                  item.quantity > selectedItem.currentStock
-                );
-              })
+              transferItems.some(item => 
+                item.availableStock !== undefined && item.quantity > item.availableStock
+              )
             }
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
