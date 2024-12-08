@@ -1,13 +1,14 @@
-// src/pages/inventory/ItemDetailsPage.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Edit2, ArrowLeft, History, Trash2, Loader2 } from 'lucide-react';
+import { Edit2, ArrowLeft, History, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { mockApi } from '@/services/mockApi';
+// import Alert, { AlertType } from '@/components/common/Alert';
 import useAuth from '@/hooks/useAuth';
-import {  ItemResponse } from '@/types/api/types';
+import { ItemResponse, StockResponse } from '@/types/api/types'; 
+import axiosInstance from '@/lib/axios';
 
 const ItemDetailsPage = () => {
   const { id } = useParams();
@@ -15,30 +16,55 @@ const ItemDetailsPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const [item, setItem] = useState<ItemResponse | null>(null);
+  const [stockInfo, setStockInfo] = useState<StockResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Check permissions
   const canEditItem = user?.userRoles[0]?.role.access.items.update;
   const canDeleteItem = user?.userRoles[0]?.role.access.items.delete;
 
-  // Fetch item details
+  // Fetch item details and stock information
   useEffect(() => {
-    const fetchItem = async () => {
+    const fetchItemData = async () => {
       try {
         setIsLoading(true);
-        const itemData = await mockApi.items.getItemById(id || '');
-        setItem(itemData);
-      } catch (err) {
-        setError('Failed to load item details');
-        console.error('Error fetching item:', err);
+        const [itemResponse, stockResponse] = await Promise.all([
+          axiosInstance.get<ItemResponse>(`/items/${id}`),
+          axiosInstance.get<StockResponse[]>(`/stock/${id}`)
+        ]);
+        
+        setItem(itemResponse.data);
+        setStockInfo(stockResponse.data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load item details');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchItem();
+    if (id) {
+      fetchItemData();
+    }
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await axiosInstance.delete(`/items/${id}`);
+      navigate('/inventory/items', {
+        state: { message: 'Item deleted successfully' }
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete item');
+      setIsDeleting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -51,6 +77,7 @@ const ItemDetailsPage = () => {
   if (error || !item) {
     return (
       <div className="text-center py-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p className="text-gray-500">{error || 'Item not found'}</p>
         <button
           onClick={() => navigate(-1)}
@@ -62,8 +89,8 @@ const ItemDetailsPage = () => {
     );
   }
 
-  const isLowStock = item.currentStock !== undefined && 
-                    item.currentStock < item.minimumQuantity;
+  const totalStock = stockInfo.reduce((sum, stock) => sum + stock.balance, 0);
+  const isLowStock = totalStock < item.minimumQuantity;
 
   return (
     <div className="space-y-6">
@@ -90,16 +117,21 @@ const ItemDetailsPage = () => {
           )}
           {canDeleteItem && (
             <button
-              onClick={() => {
-                if (confirm('Are you sure you want to delete this item?')) {
-                  // Delete logic here
-                  navigate('/inventory/items');
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
-              <Trash2 className="h-4 w-4" />
-              Delete Item
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete Item
+                </>
+              )}
             </button>
           )}
         </div>
@@ -128,7 +160,7 @@ const ItemDetailsPage = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
             `}
           >
-            Transaction History
+            Location Stock
           </button>
         </nav>
       </div>
@@ -149,6 +181,18 @@ const ItemDetailsPage = () => {
                 <dd className="mt-1 text-sm text-gray-900">{item.description || '-'}</dd>
               </div>
               <div>
+                <dt className="text-sm font-medium text-gray-500">Created At</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {new Date(item.createdAt).toLocaleDateString()}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {new Date(item.updatedAt).toLocaleDateString()}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-sm font-medium text-gray-500">Status</dt>
                 <dd className="mt-1">
                   <StatusBadge status={item.status} />
@@ -162,9 +206,9 @@ const ItemDetailsPage = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-4">Stock Information</h3>
             <dl className="space-y-4">
               <div>
-                <dt className="text-sm font-medium text-gray-500">Current Stock</dt>
+                <dt className="text-sm font-medium text-gray-500">Total Stock</dt>
                 <dd className={`mt-1 text-sm font-medium ${isLowStock ? 'text-red-600' : 'text-gray-900'}`}>
-                  {item.currentStock ?? 'N/A'}
+                  {totalStock}
                 </dd>
               </div>
               <div>
@@ -183,19 +227,48 @@ const ItemDetailsPage = () => {
         </div>
       ) : (
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Transaction History</h3>
-            <select className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-              <option value="all">All Transactions</option>
-              <option value="in">Stock In</option>
-              <option value="out">Stock Out</option>
-            </select>
-          </div>
-          {/* Transaction history table would go here */}
-          <div className="text-sm text-gray-500 text-center py-8">
-            <History className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-            <p>No transactions found</p>
-          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Stock by Location</h3>
+          {stockInfo.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Location
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Quantity
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {stockInfo.map((stock) => (
+                    <tr key={stock.locationId}>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {stock.location.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 text-right">
+                        {stock.balance}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="bg-gray-50 font-medium">
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      Total
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 text-right">
+                      {totalStock}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <History className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+              <p className="text-sm text-gray-500">No stock information available</p>
+            </div>
+          )}
         </Card>
       )}
     </div>
