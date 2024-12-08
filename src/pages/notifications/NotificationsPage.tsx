@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/notifications/NotificationsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -5,12 +6,11 @@ import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { NotificationResponse, NotificationStatus } from '@/types/api/types';
-import { mockApi } from '@/services/mockApi';
+import axiosInstance from '@/lib/axios';
 import { 
   Bell, 
   Check,
   Clock,
-//   Filter,
   Trash2
 } from 'lucide-react';
 
@@ -24,10 +24,10 @@ const NotificationsPage = () => {
     const fetchNotifications = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.notifications.getNotifications();
+        const { data } = await axiosInstance.get<NotificationResponse[]>('/notifications');
         setNotifications(data);
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+      } catch (error: any) {
+        console.error('Failed to fetch notifications:', error.message);
       } finally {
         setIsLoading(false);
       }
@@ -38,24 +38,23 @@ const NotificationsPage = () => {
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const updatedNotification = await mockApi.notifications.markAsRead(notificationId);
+      const { data: updatedNotification } = await axiosInstance.patch<NotificationResponse>(`/notifications/${notificationId}/mark-as-read`);
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId ? updatedNotification : notification
         )
       );
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+    } catch (error: any) {
+      console.error('Failed to mark notification as read:', error.message);
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      // Replace with actual API call
       await Promise.all(
         notifications
           .filter(n => n.status === NotificationStatus.UNREAD)
-          .map(n => mockApi.notifications.markAsRead(n.id))
+          .map(n => axiosInstance.patch(`/notifications/${n.id}/mark-as-read`))
       );
       
       setNotifications(prev =>
@@ -64,8 +63,8 @@ const NotificationsPage = () => {
           status: NotificationStatus.READ
         }))
       );
-    } catch (error) {
-      console.error('Failed to mark all notifications as read:', error);
+    } catch (error: any) {
+      console.error('Failed to mark all notifications as read:', error.message);
     }
   };
 
