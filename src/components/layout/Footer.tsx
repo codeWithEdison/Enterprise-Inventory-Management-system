@@ -30,15 +30,15 @@ const Footer = () => {
 
             <div className="flex items-center gap-2 text-sm text-gray-600 mt-4 md:mt-0">
               Powered by 
-              <Link to='/developers' 
-                
+              <a
+                href='https://binaryhub.programmerdatch.com/'
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-primary-600 hover:text-primary-700 font-medium"
               >
                 Binary Hub
                 <Heart className="h-4 w-4 text-red-500" />
-              </Link>
+              </a>
             </div>
           </div>
         </div>
