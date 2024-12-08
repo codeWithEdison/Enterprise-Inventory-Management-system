@@ -8,7 +8,7 @@ interface InputProps {
   max?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
-  value?: string;
+  value?: string | number;
   error?: string | null;
   onCloseError?: () => void;
   type: React.HTMLInputTypeAttribute;
