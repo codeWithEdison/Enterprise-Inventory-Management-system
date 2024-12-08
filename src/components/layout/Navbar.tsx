@@ -1,17 +1,15 @@
-// src/components/layout/NavBar.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { AiOutlineLogout, AiOutlineMenu } from "react-icons/ai";
 import { FaUserCircle } from "react-icons/fa";
 import { IoIosArrowDown } from "react-icons/io";
 import { TbArrowsDiagonalMinimize2 } from "react-icons/tb";
 import { RiLockPasswordLine } from "react-icons/ri";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { AppDispatch } from '../../store';
-import { logout } from "../../features/auth/authSlice";
-import useAuth from "../../hooks/useAuth";
+import { logout as logoutAction } from "../../features/auth/authSlice";
+import  useAuth  from "../../hooks/useAuth";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
-// import UR_LOGO from "../../assets/images/ur-logo.png";
 
 interface NavBarProps {
   sidebarOpen: boolean;
@@ -23,11 +21,13 @@ const NavBar: React.FC<NavBarProps> = ({
   setSidebarOpen,
 }) => {
   const [viewUser, setViewUser] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -39,9 +39,26 @@ const NavBar: React.FC<NavBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    setViewUser(false);
-    dispatch(logout());
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      setViewUser(false);
+      
+      // Call logout from auth hook
+      await logout();
+      
+      // Dispatch Redux action
+      dispatch(logoutAction());
+      
+      // Navigate to login
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still navigate to login even if there's an error
+      navigate('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   return (
