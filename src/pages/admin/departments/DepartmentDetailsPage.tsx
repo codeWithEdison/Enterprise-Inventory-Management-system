@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/departments/DepartmentDetailsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -6,44 +7,55 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { DepartmentResponse } from '@/types/api/types';
-import { mockDepartments } from '@/lib/mock-data';
+import { DepartmentResponse, UserResponse } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal';
 
 const DepartmentDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [department, setDepartment] = useState<DepartmentResponse | null>(null);
+  const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    const fetchDepartment = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const dept = mockDepartments.find(d => d.id === id);
-        setDepartment(dept || null);
-      } catch (error) {
-        console.error('Failed to fetch department:', error);
+
+        // Fetch department
+        const { data: departmentData } = await axiosInstance.get<DepartmentResponse>(`/departments/${id}`);
+        setDepartment(departmentData);
+
+        // Fetch users for the department
+        const { data: usersData } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users', {
+          params: {
+            page: 1,
+            limit: 1000,
+            sortOrder: 'desc',
+            departmentId: id,
+          },
+        });
+        setUsers(usersData.users);
+      } catch (error: any) {
+        console.error('Failed to fetch department and users:', error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDepartment();
+    fetchData();
   }, [id]);
 
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      // Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await axiosInstance.delete(`/departments/${id}`);
       navigate('/admin/departments');
-    } catch (error) {
-      console.error('Failed to delete department:', error);
+    } catch (error: any) {
+      console.error('Failed to delete department:', error.message);
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -141,7 +153,7 @@ const DepartmentDetailsPage = () => {
                   <p className="text-sm text-gray-500">Active members in department</p>
                 </div>
               </div>
-              <span className="text-2xl font-semibold text-gray-900">5</span>
+              <span className="text-2xl font-semibold text-gray-900">{users.length}</span>
             </div>
           </div>
         </Card>
