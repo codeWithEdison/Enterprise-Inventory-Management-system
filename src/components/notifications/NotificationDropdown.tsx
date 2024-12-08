@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/notifications/NotificationDropdown.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Check, Clock } from 'lucide-react';
+import { Bell,  Clock } from 'lucide-react';
 import { NotificationResponse, NotificationStatus } from '@/types/api/types';
-import { mockApi } from '@/services/mockApi';
+import axiosInstance from '@/lib/axios';
 
 export const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,10 +16,10 @@ export const NotificationDropdown = () => {
     const fetchNotifications = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.notifications.getNotifications();
-        setNotifications(data.slice(0, 5)); // Only show latest 5
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        const { data } = await axiosInstance.get<NotificationResponse[]>('/notifications?limit=5');
+        setNotifications(data);
+      } catch (error: any) {
+        console.error('Failed to fetch notifications:', error.message);
       } finally {
         setIsLoading(false);
       }
@@ -41,14 +41,33 @@ export const NotificationDropdown = () => {
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const updatedNotification = await mockApi.notifications.markAsRead(notificationId);
+      const { data: updatedNotification } = await axiosInstance.patch<NotificationResponse>(`/notifications/${notificationId}/mark-as-read`);
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId ? updatedNotification : notification
         )
       );
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+    } catch (error: any) {
+      console.error('Failed to mark notification as read:', error.message);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await Promise.all(
+        notifications
+          .filter(n => n.status === NotificationStatus.UNREAD)
+          .map(n => axiosInstance.patch(`/notifications/${n.id}/mark-as-read`))
+      );
+      
+      setNotifications(prev =>
+        prev.map(notification => ({
+          ...notification,
+          status: NotificationStatus.READ
+        }))
+      );
+    } catch (error: any) {
+      console.error('Failed to mark all notifications as read:', error.message);
     }
   };
 
@@ -75,7 +94,7 @@ export const NotificationDropdown = () => {
               <h3 className="text-sm font-medium text-gray-900">Notifications</h3>
               {unreadCount > 0 && (
                 <button
-                  onClick={() => {/* Handle mark all as read */}}
+                  onClick={handleMarkAllAsRead}
                   className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                 >
                   Mark all as read
@@ -143,4 +162,3 @@ export const NotificationDropdown = () => {
     </div>
   );
 };
-
