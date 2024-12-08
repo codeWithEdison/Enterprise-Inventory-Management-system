@@ -1,38 +1,44 @@
-// src/pages/reports/RequestReportPage.tsx
-import  { useState, useEffect } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { useState, useEffect } from 'react';
 import { FileDown, Filter, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
-import { mockApi } from '@/services/mockApi';
-import { RequestResponse, RequestStatus } from '@/types/api/types';
+import { RequestResponse, RequestStatus, RequestFilterParams, DepartmentResponse } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
 
 const RequestReportPage = () => {
   const [requests, setRequests] = useState<RequestResponse[]>([]);
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    status: 'all',
-    department: 'all'
+  const [filters, setFilters] = useState<RequestFilterParams>({
+    startDate: undefined,
+    endDate: undefined,
+    status: undefined,
+    departmentId: undefined,
   });
 
-  // Fetch requests
+  // Fetch requests and departments
   useEffect(() => {
-    const fetchRequests = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.requests.getRequests();
-        setRequests(data);
+        const [requestsResponse, departmentsResponse] = await Promise.all([
+          axiosInstance.get<RequestResponse[]>('/requests'),
+          axiosInstance.get<DepartmentResponse[]>('/departments'),
+        ]);
+        setRequests(requestsResponse.data);
+        setDepartments(departmentsResponse.data);
+        setError(null);
       } catch (err) {
-        setError('Failed to load requests data');
-        console.error('Error fetching requests:', err);
+        setError('Failed to load requests and departments data');
+        console.error('Error fetching data:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRequests();
+    fetchData();
   }, []);
 
   // Calculate statistics
@@ -41,16 +47,25 @@ const RequestReportPage = () => {
     const pendingRequests = requests.filter(req => req.status === RequestStatus.PENDING).length;
     const approvedRequests = requests.filter(req => req.status === RequestStatus.APPROVED).length;
     const rejectedRequests = requests.filter(req => req.status === RequestStatus.REJECTED).length;
+    const fulfilledRequests = requests.filter(req => req.status === RequestStatus.FULLFILLED).length;
 
     return {
       totalRequests,
       pendingRequests,
       approvedRequests,
-      rejectedRequests
+      rejectedRequests,
+      fulfilledRequests,
     };
   };
 
-  const stats = calculateStats(requests);
+  const stats = calculateStats(requests.filter(request => {
+    const matchesStartDate = filters.startDate ? new Date(request.createdAt) >= new Date(filters.startDate) : true;
+    const matchesEndDate = filters.endDate ? new Date(request.createdAt) <= new Date(filters.endDate) : true;
+    const matchesStatus = filters.status ? request.status === filters.status : true;
+    const matchesDepartment = filters.departmentId ? request.user.userRoles[0].departmentId === filters.departmentId : true;
+
+    return matchesStartDate && matchesEndDate && matchesStatus && matchesDepartment;
+  }));
 
   const getStatusBadge = (status: RequestStatus) => {
     const styles = {
@@ -65,6 +80,13 @@ const RequestReportPage = () => {
         {status}
       </span>
     );
+  };
+
+  const handleFilterChange = (key: keyof RequestFilterParams, value: RequestFilterParams[typeof key]) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   if (isLoading) {
@@ -129,21 +151,24 @@ const RequestReportPage = () => {
             <span className="text-sm font-medium text-gray-700">Filters</span>
           </div>
           <input
+          disabled ={true} 
             type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            value={filters.startDate?.toDateString() || ''}
+            onChange={(e) => handleFilterChange('startDate', e.target.value || undefined)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />
           <span className="text-gray-500">to</span>
           <input
+          disabled ={true} 
             type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            value={filters.endDate?.toDateString() || ''}
+            onChange={(e) => handleFilterChange('endDate', e.target.value || undefined)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
           />
           <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+          
+            value={filters.status || 'all'}
+            onChange={(e) => handleFilterChange('status', e.target.value === 'all' ? undefined : e.target.value as RequestStatus)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
           >
             <option value="all">All Status</option>
@@ -152,6 +177,18 @@ const RequestReportPage = () => {
             <option value={RequestStatus.REJECTED}>Rejected</option>
             <option value={RequestStatus.FULLFILLED}>Fulfilled</option>
           </select>
+          {/* <select
+            value={filters.departmentId || 'all'}
+            onChange={(e) => handleFilterChange('departmentId', e.target.value === 'all' ? undefined : e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </select> */}
         </div>
 
         {/* Requests Table */}
@@ -181,8 +218,17 @@ const RequestReportPage = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {requests
-                .filter(request => 
-                  filters.status === 'all' || request.status === filters.status
+                .filter((request) =>
+                  filters.startDate ? new Date(request.createdAt) >= new Date(filters.startDate) : true
+                )
+                .filter((request) =>
+                  filters.endDate ? new Date(request.createdAt) <= new Date(filters.endDate) : true
+                )
+                .filter((request) =>
+                  filters.status ? request.status === filters.status : true
+                )
+                .filter((request) =>
+                  filters.departmentId ? request.user.userRoles[0].departmentId === filters.departmentId : true
                 )
                 .map((request) => (
                   <tr key={request.id}>
