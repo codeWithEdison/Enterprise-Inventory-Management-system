@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/departments/CreateDepartmentPage.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { Card } from '@/components/common/Card';
 import Input from '@/components/common/Input';
 import { CreateDepartmentInput } from '@/types/api/types';
 import Alert, { AlertType } from '@/components/common/Alert';
+import axiosInstance from '@/lib/axios';
 
 const CreateDepartmentPage = () => {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ const CreateDepartmentPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateDepartmentInput>({
     name: '',
-    description: ''
+    description: '',
   });
 
   const validateForm = (): boolean => {
@@ -34,12 +35,10 @@ const CreateDepartmentPage = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await axiosInstance.post('/departments', formData);
       navigate('/admin/departments');
-    } catch (err) {
-      setError('Failed to create department. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to create department. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -78,12 +77,10 @@ const CreateDepartmentPage = () => {
                   title="Department Name"
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   error={error && !formData.name.trim() ? 'Department name is required' : undefined}
                   onCloseError={() => setError(null)}
                   className="bg-gray-50 focus:bg-white"
-                  
-                //   placeholder="Enter department name"
                 />
 
                 <div>
@@ -92,7 +89,9 @@ const CreateDepartmentPage = () => {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, description: e.target.value }))
+                    }
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
