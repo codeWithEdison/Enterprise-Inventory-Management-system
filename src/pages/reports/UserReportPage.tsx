@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/pages/reports/UserReportPage.tsx
 import React, { useState, useEffect } from 'react';
 import { FileDown, Filter, Users, UserPlus, UserMinus, Building2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
-import { mockApi } from '@/services/mockApi';
-import { UserResponse, RoleName } from '@/types/api/types';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { UserResponse, RoleName, Status } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
 
 const UserReportPage = () => {
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -22,10 +23,10 @@ const UserReportPage = () => {
     const fetchUsers = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.users.getUsers();
-        setUsers(data);
-      } catch (err) {
-        setError('Failed to load user data');
+        const { data } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users');
+        setUsers(data.users);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load user data');
       } finally {
         setIsLoading(false);
       }
@@ -52,20 +53,20 @@ const UserReportPage = () => {
 
   // Calculate statistics
   const totalUsers = users.length;
-  const activeUsers = users.filter(user => user.status === 'ACTIVE').length;
-  const inactiveUsers = users.filter(user => user.status === 'INACTIVE').length;
+  const activeUsers = users.filter((user) => user.status === Status.ACTIVE).length;
+  const inactiveUsers = users.filter((user) => user.status === Status.INACTIVE).length;
 
   // Role distribution data
-  const roleDistribution = Object.values(RoleName).map(role => ({
+  const roleDistribution = Object.values(RoleName).map((role) => ({
     name: role,
-    value: users.filter(user => 
-      user.userRoles.some(ur => ur.role.name === role)
-    ).length
+    value: users.filter((user) =>
+      user.userRoles.some((ur) => ur.role.name === role)
+    ).length,
   }));
 
   // Department distribution data
   const departmentDistribution = users.reduce((acc, user) => {
-    user.userRoles.forEach(ur => {
+    user.userRoles.forEach((ur) => {
       const deptName = ur.department.name;
       acc[deptName] = (acc[deptName] || 0) + 1;
     });
@@ -74,7 +75,7 @@ const UserReportPage = () => {
 
   const departmentData = Object.entries(departmentDistribution).map(([name, value]) => ({
     name,
-    value
+    value,
   }));
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1'];
@@ -89,7 +90,7 @@ const UserReportPage = () => {
           <FileDown className="h-4 w-4" />
           Export Report
         </button>
-      </PageHeader>
+      </PageHeader> 
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -208,7 +209,7 @@ const UserReportPage = () => {
               <input
                 type="date"
                 value={dateRange.startDate}
-                onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                onChange={(e) => setDateRange((prev) => ({ ...prev, startDate: e.target.value }))}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />
             </div>
@@ -219,7 +220,7 @@ const UserReportPage = () => {
               <input
                 type="date"
                 value={dateRange.endDate}
-                onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                onChange={(e) => setDateRange((prev) => ({ ...prev, endDate: e.target.value }))}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
               />
             </div>
@@ -245,11 +246,11 @@ const UserReportPage = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {Object.entries(departmentDistribution).map(([dept, count]) => {
-                  const deptUsers = users.filter(user => 
-                    user.userRoles.some(ur => ur.department.name === dept)
+                  const deptUsers = users.filter((user) =>
+                    user.userRoles.some((ur) => ur.department.name === dept)
                   );
-                  const activeCount = deptUsers.filter(u => u.status === 'ACTIVE').length;
-                  const inactiveCount = deptUsers.filter(u => u.status === 'INACTIVE').length;
+                  const activeCount = deptUsers.filter((u) => u.status === Status.ACTIVE).length;
+                  const inactiveCount = deptUsers.filter((u) => u.status === Status.INACTIVE).length;
 
                   return (
                     <tr key={dept}>
