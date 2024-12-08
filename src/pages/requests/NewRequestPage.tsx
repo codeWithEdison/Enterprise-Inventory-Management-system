@@ -1,123 +1,144 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// src/pages/requests/NewRequestPage.tsx
-import React, { useState } from 'react';
-import { Plus, Trash2, AlertTriangle } from 'lucide-react';
-
-import { 
-  CreateRequestInput,
-  ItemResponse,
-  RequestStatus
-} from '@/types/api/types';
-import { cn } from '@/lib/utils';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CreateRequestInput, ItemResponse } from '@/types/api/types';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
-import { EmptyState } from '@/components/common/EmptyState';
+import Input from '@/components/common/Input';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import axiosInstance from '@/lib/axios';
 
 interface RequestItem {
   itemId: string;
   requestedQuantity: number;
-  currentStock?: number;
+  availableStock?: number;
 }
 
 const NewRequestPage = () => {
-  const [items, setItems] = useState<RequestItem[]>([]);
-  const [remark, setRemark] = useState('');
-  const [errors, setErrors] = useState<{
-    items?: string;
-    remark?: string;
-    [key: string]: string | undefined;
-  }>({});
+  const navigate = useNavigate();
+  const [items, setItems] = useState<ItemResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [requestItems, setRequestItems] = useState<RequestItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [remark, setRemark] = useState('');
 
-  // Mock data - replace with actual data
-  const availableItems: ItemResponse[] = [];
-
-  const addItem = () => {
-    setItems([...items, { itemId: '', requestedQuantity: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    const newItems = [...items];
-    newItems.splice(index, 1);
-    setItems(newItems);
-  };
-
-  const updateItem = (index: number, field: keyof RequestItem, value: string | number) => {
-    const newItems = [...items];
-    newItems[index] = {
-      ...newItems[index],
-      [field]: value
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axiosInstance.get<ItemResponse[]>('/items');
+        setItems(response.data.filter(item => item.status === 'ACTIVE'));
+      } catch (err: any) {
+        setError(err.message || 'Failed to load items');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    // If itemId changed, get current stock
-    if (field === 'itemId') {
-      const selectedItem = availableItems.find(item => item.id === value);
-      newItems[index].currentStock = selectedItem?.currentStock;
-    }
+    fetchItems();
+  }, []);
 
-    setItems(newItems);
-    
-    // Clear any errors for this item
-    if (errors[`item${index}`]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`item${index}`];
-        return newErrors;
-      });
+  const checkItemStock = async (itemId: string): Promise<number> => {
+    try {
+      const response = await axiosInstance.get<any>(`/stock/${itemId}`);
+      return response.data.reduce((sum: number, stock: any) => sum + stock.balance, 0);
+    } catch (error) {
+      console.error('Error checking stock:', error);
+      return 0;
     }
   };
 
-  const validateForm = () => {
-    const newErrors: typeof errors = {};
+  const handleAddItem = () => {
+    if (items.length === 0) return;
+    setRequestItems([
+      ...requestItems,
+      {
+        itemId: items[0].id,
+        requestedQuantity: 1
+      }
+    ]);
+  };
 
-    if (items.length === 0) {
-      newErrors.items = 'Please add at least one item';
+  const handleRemoveItem = (index: number) => {
+    setRequestItems(requestItems.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItem = async (index: number, field: keyof RequestItem, value: string | number) => {
+    const newItems = [...requestItems];
+    newItems[index] = { ...newItems[index] };
+
+    if (field === 'itemId') {
+      newItems[index].itemId = value as string;
+      const availableStock = await checkItemStock(value as string);
+      newItems[index].availableStock = availableStock;
+    } else if (field === 'requestedQuantity') {
+      newItems[index].requestedQuantity = Number(value) || 0;
     }
 
-    items.forEach((item, index) => {
+    setRequestItems(newItems);
+    setError(null);
+  };
+
+  const validateInputs = (): string | null => {
+    if (requestItems.length === 0) {
+      return 'Please add at least one item';
+    }
+
+    for (const item of requestItems) {
       if (!item.itemId) {
-        newErrors[`item${index}`] = 'Please select an item';
+        return 'Please select an item';
       }
       if (item.requestedQuantity <= 0) {
-        newErrors[`quantity${index}`] = 'Quantity must be greater than 0';
+        return 'Quantity must be greater than 0';
       }
-      if (item.currentStock !== undefined && item.requestedQuantity > item.currentStock) {
-        newErrors[`quantity${index}`] = 'Requested quantity exceeds available stock';
+      if (item.availableStock !== undefined && item.requestedQuantity > item.availableStock) {
+        return 'Requested quantity exceeds available stock';
       }
-    });
+    }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const validationError = validateInputs();
+    
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
+      setError(null);
+
       const requestData: CreateRequestInput = {
-        items: items.map(item => ({
+        items: requestItems.map(item => ({
           itemId: item.itemId,
           requestedQuantity: item.requestedQuantity
         })),
         remark
       };
 
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await axiosInstance.post('/requests', requestData);
       
-      // Reset form after success
-      setItems([]);
-      setRemark('');
-      // Add success notification
-    } catch (error) {
-      console.error('Failed to create request:', error);
-      // Add error notification
+      setSuccess(true);
+      setTimeout(() => {
+        navigate('/requests', { 
+          state: { message: 'Request submitted successfully' } 
+        });
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="space-y-6">
@@ -126,167 +147,135 @@ const NewRequestPage = () => {
         subtitle="Request items from inventory"
       />
 
-      <form onSubmit={handleSubmit}>
-        <Card>
-          <div className="p-6 space-y-6">
-            {/* Request Items */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Requested Items
-                </h2>
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium
-                          text-primary-600 bg-primary-50 rounded-lg
-                          hover:bg-primary-100"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Item
-                </button>
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+          <div className="flex items-center gap-2 text-red-700">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+          <div className="flex items-center gap-2 text-green-700">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+            <p>Request submitted successfully! Redirecting...</p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="p-6">
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900">Requested Items</h2>
+
+            {requestItems.length === 0 && (
+              <div className="text-center py-6 text-gray-500">
+                No items added. Click "Add Item" to start.
               </div>
+            )}
 
-              {errors.items && (
-                <div className="mb-4 text-sm text-red-600">
-                  {errors.items}
-                </div>
-              )}
-
-              {items.length === 0 ? (
-                <EmptyState
-                  title="No items added"
-                  description="Click the Add Item button to start your request"
-                />
-              ) : (
-                <div className="space-y-4">
-                  {items.map((item, index) => (
-                    <div 
-                      key={index}
-                      className="flex gap-4 items-start border border-gray-200 rounded-lg p-4"
-                    >
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Item Selection */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Select Item
-                          </label>
-                          <select
-                            value={item.itemId}
-                            onChange={(e) => updateItem(index, 'itemId', e.target.value)}
-                            className={cn(
-                              "mt-1 block w-full rounded-md border-gray-300",
-                              "focus:border-primary-500 focus:ring-primary-500",
-                              errors[`item${index}`] && "border-red-300"
-                            )}
-                          >
-                            <option value="">Select an item...</option>
-                            {availableItems.map(item => (
-                              <option key={item.id} value={item.id}>
-                                {item.name}
-                              </option>
-                            ))}
-                          </select>
-                          {errors[`item${index}`] && (
-                            <p className="mt-1 text-sm text-red-600">
-                              {errors[`item${index}`]}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Quantity Input */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Quantity
-                          </label>
-                          <div className="mt-1 relative rounded-md shadow-sm">
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.requestedQuantity}
-                              onChange={(e) => updateItem(
-                                index, 
-                                'requestedQuantity', 
-                                parseInt(e.target.value) || 0
-                              )}
-                              className={cn(
-                                "block w-full rounded-md border-gray-300",
-                                "focus:border-primary-500 focus:ring-primary-500",
-                                errors[`quantity${index}`] && "border-red-300"
-                              )}
-                            />
-                            {item.currentStock !== undefined && (
-                              <div className="mt-1 text-sm text-gray-500">
-                                Available: {item.currentStock} units
-                              </div>
-                            )}
-                            {errors[`quantity${index}`] && (
-                              <p className="mt-1 text-sm text-red-600">
-                                {errors[`quantity${index}`]}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Remove Button */}
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="p-2 text-gray-400 hover:text-red-500"
+            <div className="space-y-4">
+              {requestItems.map((item, index) => (
+                <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
+                  <div className="flex-1">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Item
+                      </label>
+                      <select
+                        value={item.itemId}
+                        onChange={(e) => handleUpdateItem(index, 'itemId', e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-my-blue rounded-md bg-gray-50 focus:bg-white"
                       >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                        <option value="">Select an item...</option>
+                        {items.map(option => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="w-32">
+                    <Input
+                      title="Quantity"
+                      type="number"
+                      value={item.requestedQuantity}
+                      onChange={(e) => handleUpdateItem(index, 'requestedQuantity', e.target.value)}
+                      min="1"
+                      className="bg-gray-50 focus:bg-white"
+                    />
+                    {item.availableStock !== undefined && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Available: {item.availableStock} units
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(index)}
+                    className="mt-7 p-1 text-gray-400 hover:text-red-500"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
                 </div>
-              )}
+              ))}
             </div>
 
-            {/* Remark */}
+            <button
+              type="button"
+              onClick={handleAddItem}
+              className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <Plus className="h-4 w-4" />
+              Add Item
+            </button>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Remark
               </label>
               <textarea
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
-                rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300
-                         focus:border-primary-500 focus:ring-primary-500"
+                rows={4}
+                className="w-full px-3 py-2 text-sm border border-my-blue rounded-md bg-gray-50 focus:bg-white"
                 placeholder="Add any additional notes or comments..."
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional: Provide any additional information about your request
+              </p>
             </div>
           </div>
-
-          {/* Form Actions */}
-          <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setItems([]);
-                setRemark('');
-              }}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white
-                      border border-gray-300 rounded-md hover:bg-gray-50
-                      focus:outline-none focus:ring-2 focus:ring-offset-2
-                      focus:ring-primary-500 disabled:opacity-50"
-            >
-              Reset
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600
-                      border border-transparent rounded-md hover:bg-primary-700
-                      focus:outline-none focus:ring-2 focus:ring-offset-2
-                      focus:ring-primary-500 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Request'}
-            </button>
-          </div>
         </Card>
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || requestItems.length === 0}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              'Submit Request'
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );
