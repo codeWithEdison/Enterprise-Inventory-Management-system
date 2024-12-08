@@ -1,14 +1,14 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/users/UserDetailsPage.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Edit2, Trash2, User } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { mockApi } from '@/services/mockApi';
-import { UserResponse } from '@/types/api/types';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { UserResponse } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
 
 const UserDetailsPage = () => {
   const { id } = useParams();
@@ -21,10 +21,10 @@ const UserDetailsPage = () => {
     const fetchUser = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.users.getCurrentUser(); // Replace with getUserById when available
+        const { data } = await axiosInstance.get<UserResponse>(`/users/${id}`);
         setUser(data);
-      } catch (err) {
-        setError('Failed to load user details');
+      } catch (err: any) {
+        setError(err.message || 'Failed to load user details');
       } finally {
         setIsLoading(false);
       }
@@ -49,6 +49,17 @@ const UserDetailsPage = () => {
     );
   }
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+
+    try {
+      await axiosInstance.delete(`/users/${id}`);
+      navigate('/admin/users');
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete user');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -71,12 +82,7 @@ const UserDetailsPage = () => {
             Edit User
           </Link>
           <button
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this user?')) {
-                // Handle delete
-                navigate('/admin/users');
-              }
-            }}
+            onClick={handleDelete}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
           >
             <Trash2 className="h-4 w-4" />
@@ -125,11 +131,8 @@ const UserDetailsPage = () => {
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Roles & Permissions</h2>
           <div className="space-y-4">
-            {user.userRoles.map((userRole, index) => (
-              <div 
-                key={userRole.id} 
-                className="p-4 bg-gray-50 rounded-lg"
-              >
+            {user.userRoles.map((userRole) => (
+              <div key={userRole.id} className="p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900">{userRole.role.name}</p>
