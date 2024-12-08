@@ -1,41 +1,54 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // src/hooks/useAuth.ts
-import { LoginInput } from '../types/api/types';
-import { login, logout, resetAuthError } from '../features/auth/authSlice';
-import { useAppDispatch, useAppSelector } from './useAppDispatch';
+import { useState } from 'react';
+import axiosInstance from '../lib/axios';
+import { LoginInput, UserResponse} from '../types/api/types';
+import { LoginResponse } from '@/types/auth';
 
-const useAuth = () => {
-  const dispatch = useAppDispatch();
-  const { user, isAuthenticated, isLoading, error } = useAppSelector(
-    (state) => state.auth
-  );
+ function useAuth() {
+  const [user, setUser] = useState<UserResponse | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
-  const handleLogin = async (credentials: LoginInput) => {
+  const login = async (credentials: LoginInput): Promise<boolean> => {
     try {
-      await dispatch(login(credentials)).unwrap();
+      const response = await axiosInstance.post<LoginResponse>('/auth/login', credentials);
+      const { user, tokens } = response.data;
+      
+      // Save access token
+      localStorage.setItem('accessToken', tokens.access.token);
+      // Save refresh token
+      localStorage.setItem('refreshToken', tokens.refresh.token);
+      // Save user data
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      setUser(user);
       return true;
     } catch (error) {
-      return false;
+      console.error('Login error:', error);
+      throw error;
     }
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-  };
-
-  const handleResetError = () => {
-    dispatch(resetAuthError());
+  const logout = async (): Promise<void> => {
+    try {
+      await axiosInstance.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
 
   return {
     user,
-    isAuthenticated,
-    isLoading,
-    error,
-    login: handleLogin,
-    logout: handleLogout,
-    resetError: handleResetError,
+    login,
+    logout,
+    isAuthenticated: !!user
   };
-};
+}
 
 export default useAuth;
