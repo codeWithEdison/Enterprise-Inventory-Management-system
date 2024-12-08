@@ -56,6 +56,7 @@ export const useAppNavigation = () => {
     activityMenus: getMenusByCategory(MENU_TYPE.ACTIVITIES),
     profileMenus: getMenusByCategory(MENU_TYPE.PROFILE),
     adminMenus: getMenusByCategory(MENU_TYPE.ADMIN),
+    dashboardMenus: getMenusByCategory(MENU_TYPE.NONE)
   };
 };
 
