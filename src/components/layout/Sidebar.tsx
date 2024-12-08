@@ -20,7 +20,7 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
   menus
 }) => {
   const [selectedMenuLink, setSelectedMenuLink] = useState("");
-  const { activityMenus, profileMenus, adminMenus } = useAppNavigation();
+  const { activityMenus, profileMenus, adminMenus, dashboardMenus } = useAppNavigation();
   const location = useLocation();
 
   // Reset selected menu when route changes
@@ -58,6 +58,43 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+
+      {dashboardMenus.length > 0 && (
+          <div className="mt-8 space-y-1 mb-2">
+            <div className="px-3 mb-2">
+             
+            </div>
+            {dashboardMenus.map((menu, index) => (
+              <NavItem
+                key={index}
+                nav={menu}
+                selectedMenuLink={selectedMenuLink}
+                setSelectedMenu={(link) => setSelectedMenuLink(link)}
+                openSubmenuByDefault
+              />
+            ))}
+          </div>
+        )}
+         {/* Profile Section */}
+         {profileMenus.length > 0 && (
+          <div className="mt-8 space-y-1">
+            <div className="px-3 mb-2">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Profile
+              </h2>
+            </div>
+            {profileMenus.map((menu, index) => (
+              <NavItem
+                key={index}
+                nav={menu}
+                selectedMenuLink={selectedMenuLink}
+                setSelectedMenu={(link) => setSelectedMenuLink(link)}
+                openSubmenuByDefault
+              />
+            ))}
+          </div>
+        )}
+        
         {/* Activities Section */}
         {activityMenus.length > 0 && (
           <div className="space-y-1">
@@ -78,25 +115,7 @@ const SideNavBar: React.FC<SideNavBarProps> = ({
           </div>
         )}
 
-        {/* Profile Section */}
-        {profileMenus.length > 0 && (
-          <div className="mt-8 space-y-1">
-            <div className="px-3 mb-2">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Profile
-              </h2>
-            </div>
-            {profileMenus.map((menu, index) => (
-              <NavItem
-                key={index}
-                nav={menu}
-                selectedMenuLink={selectedMenuLink}
-                setSelectedMenu={(link) => setSelectedMenuLink(link)}
-                openSubmenuByDefault
-              />
-            ))}
-          </div>
-        )}
+       
 
         {/* Administration Section */}
         {adminMenus.length > 0 && (
