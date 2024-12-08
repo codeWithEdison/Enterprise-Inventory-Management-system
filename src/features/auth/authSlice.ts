@@ -30,7 +30,7 @@ const testUser: UserResponse = {
     },
     role: {
       id: '1',
-      name: RoleName.ADMIN,   
+      name: RoleName.STOCK_KEEPER,    
       status: Status.ACTIVE,
       access: {
         users: { view: true, create: true, update: true, delete: true, assignRoles: true },
