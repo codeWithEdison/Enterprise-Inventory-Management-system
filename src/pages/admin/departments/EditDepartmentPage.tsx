@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/departments/EditDepartmentPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,8 +10,7 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { UpdateDepartmentInput, Status, DepartmentResponse } from '@/types/api/types';
 import Alert, { AlertType } from '@/components/common/Alert';
-import { mockDepartments } from '@/lib/mock-data';
-
+import axiosInstance from '@/lib/axios';
 const EditDepartmentPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -21,29 +20,24 @@ const EditDepartmentPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [department, setDepartment] = useState<DepartmentResponse | null>(null);
   const [formData, setFormData] = useState<UpdateDepartmentInput>({
-    name: department?.name || '',
-    description: department?.description || '',
-    status: department?.status || Status.ACTIVE,
+    name: '',
+    description: '',
+    status: Status.ACTIVE,
   });
 
   useEffect(() => {
     const fetchDepartment = async () => {
       try {
         setIsLoading(true);
-        // Replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const dept = mockDepartments.find(d => d.id === id);
-        
-        if (dept) {
-          setDepartment(dept);
-          setFormData({
-            name: dept.name,
-            description: dept.description || '',
-            status: dept.status,
-          });
-        }
-      } catch (error) {
-        setError('Failed to fetch department details');
+        const { data } = await axiosInstance.get<DepartmentResponse>(`/departments/${id}`);
+        setDepartment(data);
+        setFormData({
+          name: data.name,
+          description: data.description || '',
+          status: data.status,
+        });
+      } catch (error: any) {
+        setError(error.message || 'Failed to fetch department details');
       } finally {
         setIsLoading(false);
       }
@@ -67,13 +61,10 @@ const EditDepartmentPage = () => {
     try {
       setIsSubmitting(true);
       setError(null);
-
-      // Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await axiosInstance.patch(`/departments/${id}`, formData);
       navigate(`/admin/departments/${id}`);
-    } catch (err) {
-      setError('Failed to update department. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update department. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +121,7 @@ const EditDepartmentPage = () => {
                   title="Department Name"
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   error={error && !formData.name?.trim() ? 'Department name is required' : undefined}
                   onCloseError={() => setError(null)}
                   className="bg-gray-50 focus:bg-white"
@@ -142,7 +133,9 @@ const EditDepartmentPage = () => {
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, description: e.target.value }))
+                    }
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
@@ -156,16 +149,20 @@ const EditDepartmentPage = () => {
                   </label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      status: e.target.value as Status 
-                    }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        status: e.target.value as Status,
+                      }))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
                              bg-gray-50 focus:bg-white"
                   >
-                    {Object.values(Status).map(status => (
-                      <option key={status} value={status}>{status}</option>
+                    {Object.values(Status).map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
                     ))}
                   </select>
                 </div>
