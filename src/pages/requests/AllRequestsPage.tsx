@@ -1,42 +1,41 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/pages/requests/AllRequestsPage.tsx
-import React, { useState } from "react";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useState, useEffect } from 'react';
 import {
   Clock,
   CheckCircle2,
   XCircle,
   FilterX,
   Download,
-  //   CalendarRange,
   Building2,
-} from "lucide-react";
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import {
   RequestResponse,
   RequestStatus,
   RequestFilterParams,
   DepartmentResponse,
-} from "@/types/api/types";
-import Modal, { ModalSize } from "@/components/common/Modal";
-import { cn } from "@/lib/utils";
-import Pagination from "@/components/common/Pagination";
-import { PageHeader } from "@/components/common/PageHeader";
-import { Card } from "@/components/common/Card";
-import { SearchInput } from "@/components/common/SearchInput";
-import { EmptyState } from "@/components/common/EmptyState";
-import { mockRequests } from "@/lib/mock-data";
-import { Link } from "react-router-dom";
+} from '@/types/api/types';
+// import Modal, { ModalSize } from '@/components/common/Modal';
+import { cn } from '@/lib/utils';
+import Pagination from '@/components/common/Pagination';
+import { PageHeader } from '@/components/common/PageHeader';
+import { Card } from '@/components/common/Card';
+import { SearchInput } from '@/components/common/SearchInput';
+import { EmptyState } from '@/components/common/EmptyState';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import axiosInstance from '@/lib/axios';
 
 const PAGE_SIZE = 10;
 
 const AllRequestsPage = () => {
   // States for filters
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<RequestFilterParams>({
     page: 1,
     limit: PAGE_SIZE,
-    sortBy: "createdAt",
-    sortOrder: "desc",
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
     status: undefined,
     userId: undefined,
     departmentId: undefined,
@@ -50,12 +49,29 @@ const AllRequestsPage = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allRequests, setAllRequests] = useState<RequestResponse[]>([]);
+  const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
 
-  // Mock data - replace with actual data
-  const allRequests: RequestResponse[] = mockRequests; 
-  const departments: DepartmentResponse[] = [];
+  useEffect(() => {
+    fetchAllRequests();
+  }, [filters]);
+
+  const fetchAllRequests = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axiosInstance.get<RequestResponse[]>('/requests', {
+        params: filters,
+      });
+      setAllRequests(response.data);
+      setDepartments([...new Set(response.data.map(r => r.user.userRoles[0].department))]);
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusIcon = (status: RequestStatus) => {
     switch (status) {
@@ -75,15 +91,15 @@ const AllRequestsPage = () => {
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
       case RequestStatus.PENDING:
-        return "text-yellow-700 bg-yellow-50";
+        return 'text-yellow-700 bg-yellow-50';
       case RequestStatus.APPROVED:
-        return "text-blue-700 bg-blue-50";
+        return 'text-blue-700 bg-blue-50';
       case RequestStatus.REJECTED:
-        return "text-red-700 bg-red-50";
+        return 'text-red-700 bg-red-50';
       case RequestStatus.FULLFILLED:
-        return "text-green-700 bg-green-50";
+        return 'text-green-700 bg-green-50';
       default:
-        return "text-gray-700 bg-gray-50";
+        return 'text-gray-700 bg-gray-50';
     }
   };
 
@@ -104,7 +120,7 @@ const AllRequestsPage = () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       // Download file handling
     } catch (error) {
-      console.error("Export failed:", error);
+      console.error('Export failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +130,8 @@ const AllRequestsPage = () => {
     setSelectedRequest(request);
     setIsDetailModalOpen(true);
   };
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="space-y-6">
@@ -145,9 +163,9 @@ const AllRequestsPage = () => {
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg",
-                "border border-gray-300 hover:bg-gray-50",
-                showFilters && "bg-primary-50 border-primary-300"
+                'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg',
+                'border border-gray-300 hover:bg-gray-50',
+                showFilters && 'bg-primary-50 border-primary-300'
               )}
             >
               <FilterX className="h-4 w-4" />
@@ -164,9 +182,9 @@ const AllRequestsPage = () => {
                   Status
                 </label>
                 <select
-                  value={filters.status || ""}
+                  value={filters.status || ''}
                   onChange={(e) =>
-                    handleFilterChange("status", e.target.value || undefined)
+                    handleFilterChange('status', e.target.value || undefined)
                   }
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm
                            focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
@@ -186,10 +204,10 @@ const AllRequestsPage = () => {
                   Department
                 </label>
                 <select
-                  value={filters.departmentId || ""}
+                  value={filters.departmentId || ''}
                   onChange={(e) =>
                     handleFilterChange(
-                      "departmentId",
+                      'departmentId',
                       e.target.value || undefined
                     )
                   }
@@ -288,7 +306,7 @@ const AllRequestsPage = () => {
                         {request.requestedItems.map((item, index) => (
                           <div key={item.id}>
                             {item.item.name} ({item.requestedQuantity} units)
-                            {index < request.requestedItems.length - 1 && ", "}
+                            {index < request.requestedItems.length - 1 && ', '}
                           </div>
                         ))}
                       </div>
@@ -298,7 +316,7 @@ const AllRequestsPage = () => {
                         {getStatusIcon(request.status)}
                         <span
                           className={cn(
-                            "ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium",
+                            'ml-2 px-2.5 py-0.5 rounded-full text-xs font-medium',
                             getStatusColor(request.status)
                           )}
                         >
@@ -307,7 +325,8 @@ const AllRequestsPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link  to={`${request.id}`}
+                      <Link
+                        to={`${request.id}`}
                         // onClick={() => handleViewDetails(request)}
                         className="text-primary-600 hover:text-primary-900"
                       >
@@ -330,15 +349,13 @@ const AllRequestsPage = () => {
           <Pagination
             currentPage={filters.page || 1}
             totalPages={Math.ceil(allRequests.length / PAGE_SIZE)}
-            onPageChange={(page) => handleFilterChange("page", page)}
+            onPageChange={(page) => handleFilterChange('page', page)}
             pageSize={PAGE_SIZE}
             totalItems={allRequests.length}
             className="border-t"
           />
         )}
       </Card>
-
-     
     </div>
   );
 };
