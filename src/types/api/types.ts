@@ -37,7 +37,7 @@ export interface LoginInput {
 }
 
 export interface LoginResponse {
-  accessToken: string;
+  tokens: string;
   user: UserResponse;
 }
 
@@ -328,6 +328,7 @@ export interface RequestFilterParams extends PaginationParams, DateRangeParams {
   status?: RequestStatus;
   userId?: UUID;
   departmentId?: UUID;
+  search?: string ;
 }
 
 export interface TransactionFilterParams extends PaginationParams, DateRangeParams {
