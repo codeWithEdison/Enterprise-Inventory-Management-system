@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/pages/admin/departments/DepartmentsListPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,39 +8,64 @@ import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { DepartmentResponse, Status } from '@/types/api/types';
-import { mockDepartments } from '@/lib/mock-data';
+import { DepartmentResponse, Status, UserResponse } from '@/types/api/types';
+import axiosInstance from '@/lib/axios';
 
 const DepartmentsListPage = () => {
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
+  const [userCounts, setUserCounts] = useState<{ [key: string]: number }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | Status>('ALL');
 
   useEffect(() => {
-    const fetchDepartments = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setDepartments(mockDepartments);
-      } catch (error) {
-        console.error('Failed to fetch departments:', error);
+
+        // Fetch departments
+        const { data: departmentsData } = await axiosInstance.get<DepartmentResponse[]>('/departments', {
+          params: {
+            sortOrder: 'asc',
+          },
+        });
+        setDepartments(departmentsData);
+
+        // Fetch users
+        const { data: usersData } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users', {
+          params: {
+            page: 1,
+            limit: 1000,
+            sortOrder: 'desc',
+          },
+        });
+
+        // Calculate user counts for each department
+        const userCountsByDepartment: { [key: string]: number } = {};
+        departmentsData.forEach((dept) => {
+          userCountsByDepartment[dept.id] = usersData.users.filter((user) =>
+            user.userRoles.some((role) => role.departmentId === dept.id)
+          ).length;
+        });
+        setUserCounts(userCountsByDepartment);
+      } catch (error: any) {
+        console.error('Failed to fetch departments and users:', error.message);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDepartments();
+    fetchData();
   }, []);
 
   if (isLoading) {
     return <LoadingScreen />;
   }
 
-  const filteredDepartments = departments.filter(dept => {
-    const matchesSearch = dept.name.toLowerCase().includes(search.toLowerCase()) ||
-                         dept.description?.toLowerCase().includes(search.toLowerCase());
+  const filteredDepartments = departments.filter((dept) => {
+    const matchesSearch =
+      dept.name.toLowerCase().includes(search.toLowerCase()) ||
+      dept.description?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || dept.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -74,8 +100,10 @@ const DepartmentsListPage = () => {
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             <option value="ALL">All Status</option>
-            {Object.values(Status).map(status => (
-              <option key={status} value={status}>{status}</option>
+            {Object.values(Status).map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
             ))}
           </select>
         </div>
@@ -122,8 +150,7 @@ const DepartmentsListPage = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500">
-                      {/* Replace with actual user count */}
-                      5 users
+                      {userCounts[department.id] || 0} users
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
