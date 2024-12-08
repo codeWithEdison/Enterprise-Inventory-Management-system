@@ -72,7 +72,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
     title: "Dashboard",
     label: "Dashboard Overview",
     url: "/",
-    menu_type: MENU_TYPE.ACTIVITIES, 
+    menu_type: MENU_TYPE.NONE,  
     roles: "all",
     subMenus: []
   },
@@ -115,12 +115,12 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
         url: "/inventory/transfer",
         roles: [RoleName.STOCK_KEEPER]
       },
-      {
-        title: "Stock Adjustments",
-        label: "Manage Stock Adjustments",
-        url: "/inventory/adjustments",
-        roles: [RoleName.STOCK_KEEPER]
-      }
+      // {
+      //   title: "Stock Adjustments",
+      //   label: "Manage Stock Adjustments",
+      //   url: "/inventory/adjustments",
+      //   roles: [RoleName.STOCK_KEEPER]
+      // }
     ]
   },
   {
@@ -153,7 +153,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
         title: "All Requests",
         label: "View All Requests",
         url: "/requests",
-        roles: [RoleName.ADMIN, RoleName.HOD, RoleName.STOCK_KEEPER]
+        roles: [RoleName.ADMIN, RoleName.HOD, RoleName.STOCK_KEEPER] 
       }
     ]
   },
@@ -298,3 +298,7 @@ export const getAdminMenus = () => getMenusByType(MENU_TYPE.ADMIN);
 
 // Helper function to get all profile menus
 export const getProfileMenus = () => getMenusByType(MENU_TYPE.PROFILE);
+
+// helper function to gell all noe menu
+
+export const getDashboardMenus = () => getMenusByType(MENU_TYPE.NONE);
