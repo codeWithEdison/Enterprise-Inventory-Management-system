@@ -1,32 +1,43 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// src/pages/requests/MyRequestsPage.tsx
-import React, { useState } from 'react';
-import { Filter, AlertCircle, Calendar, Clock, Eye, XCircle } from 'lucide-react';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, Clock, Eye, XCircle, CheckCircle2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { RequestResponse, RequestStatus } from '@/types/api/types';
-import Modal, { ModalSize } from '@/components/common/Modal';
-import { cn } from '@/lib/utils';
-import Pagination from '@/components/common/Pagination';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SearchInput } from '@/components/common/SearchInput';
-import { mockApi } from '@/services/mockApi';
-import { mockRequests } from '@/lib/mock-data';
-import { Link } from 'react-router-dom';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import Pagination from '@/components/common/Pagination';
+import { cn } from '@/lib/utils';
+import axiosInstance from '@/lib/axios';
 
 const PAGE_SIZE = 10;
 
 const MyRequestsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'all'>('all');
-  const [selectedRequest, setSelectedRequest] = useState<RequestResponse | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [requests, setRequests] = useState<RequestResponse[]>([]);
 
-  // Mock data - replace with actual data
-  const myRequests: RequestResponse[] = mockRequests; 
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axiosInstance.get<RequestResponse[]>('/requests/my');
+        setRequests(response.data);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load requests');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRequests();
+  }, []);
 
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
@@ -52,15 +63,35 @@ const MyRequestsPage = () => {
       case RequestStatus.REJECTED:
         return <XCircle className="h-5 w-5 text-red-500" />;
       case RequestStatus.FULLFILLED:
-        return <AlertCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       default:
         return null;
     }
   };
 
-  const filteredRequests = myRequests.filter(request => {
+  const handleCancelRequest = async (requestId: string) => {
+    if (!confirm('Are you sure you want to cancel this request?')) return;
+    
+    try {
+      await axiosInstance.patch(`/requests/${requestId}/cancel`);
+      
+      // Update request status in the list
+      setRequests(prevRequests => 
+        prevRequests.map(request => 
+          request.id === requestId 
+            ? { ...request, status: RequestStatus.REJECTED }
+            : request
+        )
+      );
+    } catch (error: any) {
+      setError(error.message || 'Failed to cancel request');
+    }
+  };
+
+  // Filter and paginate requests
+  const filteredRequests = requests.filter(request => {
     const matchesSearch = !searchQuery || 
-      request.requestedItems.some(item => 
+      request.requestedItems.some((item: { item: { name: string; }; }) => 
         item.item.name.toLowerCase().includes(searchQuery.toLowerCase())
       ) ||
       request.remark?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -75,33 +106,30 @@ const MyRequestsPage = () => {
     currentPage * PAGE_SIZE
   );
 
-  const handleViewDetails = (request: RequestResponse) => {
-    setSelectedRequest(request);
-    setIsDetailModalOpen(true);
-  };
-
-  const handleCancelRequest = async (requestId: string) => {
-    if (!confirm('Are you sure you want to cancel this request?')) return;
-    
-    setIsLoading(true);
-    try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Add success notification
-    } catch (error) {
-      console.error('Failed to cancel request:', error);
-      // Add error notification
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="My Requests"
         subtitle="View and manage your stock requests"
-      />
+      >
+        <Link
+          to="/requests/new"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+        >
+          New Request
+        </Link>
+      </PageHeader>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
+          <div className="flex items-center gap-2 text-red-700">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        </div>
+      )}
 
       <Card>
         {/* Filters */}
@@ -165,11 +193,11 @@ const MyRequestsPage = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {request.requestedItems.map((item, index) => (
-                          <div key={item.id}>
+                        {request.requestedItems.map((item: { id: React.Key | null | undefined; item: { name: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | null | undefined; }; }, index: number) => (
+                          <span key={item.id}>
                             {item.item.name}
                             {index < request.requestedItems.length - 1 && ', '}
-                          </div>
+                          </span>
                         ))}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -194,8 +222,8 @@ const MyRequestsPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <Link to={`/requests/${request.id}`}
-                          // onClick={() => handleViewDetails(request)}
+                        <Link
+                          to={`/requests/${request.id}`}
                           className="text-primary-600 hover:text-primary-900"
                         >
                           View
@@ -203,7 +231,6 @@ const MyRequestsPage = () => {
                         {request.status === RequestStatus.PENDING && (
                           <button
                             onClick={() => handleCancelRequest(request.id)}
-                            disabled={isLoading}
                             className="text-red-600 hover:text-red-900"
                           >
                             Cancel
@@ -218,7 +245,11 @@ const MyRequestsPage = () => {
           ) : (
             <EmptyState
               title="No requests found"
-              description="No requests match your current filters."
+              description={
+                searchQuery || filterStatus !== 'all'
+                  ? "No requests match your current filters."
+                  : "You haven't made any requests yet."
+              }
             />
           )}
         </div>
@@ -234,8 +265,6 @@ const MyRequestsPage = () => {
           />
         )}
       </Card>
-
-     
     </div>
   );
 };
