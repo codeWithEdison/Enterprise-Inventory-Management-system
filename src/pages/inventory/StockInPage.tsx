@@ -1,21 +1,24 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// src/pages/inventory/StockInPage.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PackageCheck, Plus, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import Input from '@/components/common/Input';
-import { mockApi } from '@/services/mockApi';
-import { ItemResponse, LocationResponse, TransactionType } from '@/types/api/types';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import Alert, { AlertType } from '@/components/common/Alert';
-import { mockLocations } from '@/lib/mock-data';
+import axiosInstance from '@/lib/axios';
+import { 
+  ItemResponse, 
+  LocationResponse, 
+  TransactionType,
+  CreateTransactionInput 
+} from '@/types/api/types';
 
-interface StockInItem {
+interface StockInItem extends Omit<CreateTransactionInput, 'transactionType'> {
   itemId: string;
-  quantity: number;
   locationId: string;
+  quantity: number;
   reason?: string;
 }
 
@@ -32,20 +35,24 @@ const StockInPage = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [itemsData, locationsData] = await Promise.all([
-          mockApi.items.getItems(),
-          // Use mockLocations instead of inline mock data
-          Promise.resolve(mockLocations)
+        const [itemsResponse, locationsResponse] = await Promise.all([
+          axiosInstance.get<ItemResponse[]>('/items'),
+          axiosInstance.get<LocationResponse[]>('/locations')
         ]);
-        setItems(itemsData);
-        setLocations(locationsData);
-      } catch (error) {
-        setError('Failed to load data');
+
+        // Filter only active items and locations
+        const activeItems = itemsResponse.data.filter(item => item.status === 'ACTIVE');
+        const activeLocations = locationsResponse.data.filter(location => location.status === 'ACTIVE');
+
+        setItems(activeItems);
+        setLocations(activeLocations);
+      } catch (error: any) {
+        setError(error.message || 'Failed to load data');
       } finally {
         setIsLoading(false);
       }
     };
-  
+
     fetchData();
   }, []);
 
@@ -56,7 +63,7 @@ const StockInPage = () => {
       ...stockInItems,
       {
         itemId: items[0].id,
-        quantity: 0,
+        quantity: 1,
         locationId: locations[0].id,
         reason: ''
       }
@@ -75,17 +82,36 @@ const StockInPage = () => {
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation
+  const validateInputs = (): string | null => {
     if (stockInItems.length === 0) {
-      setError('Please add at least one item');
-      return;
+      return 'Please add at least one item';
     }
 
-    if (stockInItems.some(item => item.quantity <= 0)) {
-      setError('All quantities must be greater than 0');
+    for (const item of stockInItems) {
+      if (item.quantity <= 0) {
+        return 'Quantity must be greater than 0';
+      }
+
+      const selectedItem = items.find(i => i.id === item.itemId);
+      if (!selectedItem) {
+        return 'Invalid item selected';
+      }
+
+      const selectedLocation = locations.find(l => l.id === item.locationId);
+      if (!selectedLocation) {
+        return 'Invalid location selected';
+      }
+    }
+
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const validationError = validateInputs();
+    
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -93,19 +119,22 @@ const StockInPage = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // Replace with actual API call
-      await Promise.all(
-        stockInItems.map(item => 
-          mockApi.transactions.create({
-            ...item,
-            transactionType: TransactionType.IN
-          })
-        )
-      );
+      // Create transactions with the correct format
+      const requestBody = {
+        transactions: stockInItems.map(item => ({
+          ...item,
+          transactionType: TransactionType.IN
+        }))
+      };
 
-      navigate('/inventory');
-    } catch (err) {
-      setError('Failed to process stock in. Please try again.');
+      await axiosInstance.post('/transactions', requestBody);
+
+      // Show success message and navigate
+      navigate('/inventory', { 
+        state: { message: 'Stock in recorded successfully' } 
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to process stock in. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -128,89 +157,85 @@ const StockInPage = () => {
         />
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="p-6">
           <div className="space-y-6">
-            {/* Stock In Items */}
-            <div className="space-y-4">
-              {stockInItems.map((stockInItem, index) => (
-                <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
-                  {/* Item Selection */}
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Item
-                    </label>
-                    <select
-                      value={stockInItem.itemId}
-                      onChange={(e) => handleUpdateItem(index, { itemId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      {items.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            {stockInItems.length === 0 && (
+              <div className="text-center py-6 text-gray-500">
+                No items added. Click "Add Item" to start.
+              </div>
+            )}
 
-                  {/* Quantity */}
-                  <div className="w-32">
-                    <Input
-                      title="Quantity"
-                      type="number"
-                      value={stockInItem.quantity.toString()}
-                      onChange={(e) => handleUpdateItem(index, { 
-                        quantity: parseInt(e.target.value) || 0 
-                      })}
-                      min="1"
-                      className="bg-gray-50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* Location */}
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Location
-                    </label>
-                    <select
-                      value={stockInItem.locationId}
-                      onChange={(e) => handleUpdateItem(index, { locationId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    >
-                      {locations.map(location => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Reason */}
-                  <div className="flex-1">
-                    <Input
-                      title="Reason"
-                      type="text"
-                      value={stockInItem.reason || ''}
-                      onChange={(e) => handleUpdateItem(index, { 
-                        reason: e.target.value 
-                      })}
-                      className="bg-gray-50 focus:bg-white"
-                    />
-                  </div>
-
-                  {/* Remove Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveItem(index)}
-                    className="mt-7 p-1 text-gray-400 hover:text-red-500"
+            {stockInItems.map((stockInItem, index) => (
+              <div key={index} className="flex gap-4 items-start border-b border-gray-200 pb-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Item
+                  </label>
+                  <select
+                    value={stockInItem.itemId}
+                    onChange={(e) => handleUpdateItem(index, { itemId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                    {items.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
 
-            {/* Add Item Button */}
+                <div className="w-32">
+                  <Input
+                    title="Quantity"
+                    type="number"
+                    value={stockInItem.quantity.toString()}
+                    onChange={(e) => handleUpdateItem(index, { 
+                      quantity: parseInt(e.target.value) || 0 
+                    })}
+                    min="1"
+                    className="bg-gray-50 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <select
+                    value={stockInItem.locationId}
+                    onChange={(e) => handleUpdateItem(index, { locationId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  >
+                    {locations.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <Input
+                    title="Reason"
+                    type="text"
+                    value={stockInItem.reason || ''}
+                    onChange={(e) => handleUpdateItem(index, { reason: e.target.value })}
+                    // placeholder="Optional"
+                    className="bg-gray-50 focus:bg-white"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleRemoveItem(index)}
+                  className="mt-7 p-1 text-gray-400 hover:text-red-500"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </div>
+            ))}
+
             <button
               type="button"
               onClick={handleAddItem}
@@ -222,8 +247,7 @@ const StockInPage = () => {
           </div>
         </Card>
 
-        {/* Submit Button */}
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
