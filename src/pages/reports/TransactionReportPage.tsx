@@ -1,13 +1,47 @@
-// src/pages/reports/TransactionReportPage.tsx
-import  { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileDown, Filter, ArrowDownCircle, ArrowUpCircle, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
-import { mockApi } from '@/services/mockApi';
-import { TransactionType, TransactionResponse } from '@/types/api/types';
+import axiosInstance from '@/lib/axios'; 
+import { TransactionType } from '@/types/api/types';
+
+interface Transaction {
+  id: string;
+  quantity: number;
+  transactionType: TransactionType;
+  reason: string;
+  createdAt: string;
+  item: {
+    id: string;
+    name: string;
+  };
+  location: {
+    id: string;
+    name: string;
+  };
+}
+
+interface TransactionReport {
+  totalTransactions: number;
+  totalStockIn: number;
+  totalStockOut: number;
+  transactionsByType: {
+    type: TransactionType;
+    count: number;
+    totalQuantity: number;
+  }[];
+  transactionsByItem: {
+    itemId: string;
+    itemName: string;
+    stockIn: number;
+    stockOut: number;
+    netChange: number;
+  }[];
+  transactions: Transaction[];
+}
 
 const TransactionReportPage = () => {
-  const [transactions, setTransactions] = useState<TransactionResponse[]>([]);
+  const [reportData, setReportData] = useState<TransactionReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -16,13 +50,12 @@ const TransactionReportPage = () => {
     transactionType: 'all',
   });
 
-  // Fetch transactions
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
         setIsLoading(true);
-        const data = await mockApi.transactions.getTransactions();
-        setTransactions(data);
+        const { data } = await axiosInstance.get('/reports/transactions');
+        setReportData(data);
       } catch (err) {
         setError('Failed to load transactions');
         console.error('Error fetching transactions:', err);
@@ -34,25 +67,6 @@ const TransactionReportPage = () => {
     fetchTransactions();
   }, []);
 
-  // Calculate statistics
-  const calculateStats = () => {
-    const stockIn = transactions
-      .filter(t => t.transactionType === TransactionType.IN)
-      .reduce((sum, t) => sum + t.quantity, 0);
-    
-    const stockOut = transactions
-      .filter(t => t.transactionType === TransactionType.OUT)
-      .reduce((sum, t) => sum + t.quantity, 0);
-    
-    return {
-      totalTransactions: transactions.length,
-      stockIn,
-      stockOut,
-    };
-  };
-
-  const stats = calculateStats();
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -61,7 +75,7 @@ const TransactionReportPage = () => {
     );
   }
 
-  if (error) {
+  if (error || !reportData) {
     return (
       <div className="text-center py-12">
         <p className="text-red-500">{error}</p>
@@ -91,20 +105,70 @@ const TransactionReportPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{stats.totalTransactions}</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{reportData.totalTransactions}</p>
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Total Stock In</h3>
-          <p className="mt-2 text-3xl font-bold text-green-600">{stats.stockIn}</p>
+          <p className="mt-2 text-3xl font-bold text-green-600">{reportData.totalStockIn}</p>
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Total Stock Out</h3>
-          <p className="mt-2 text-3xl font-bold text-red-600">{stats.stockOut}</p>
+          <p className="mt-2 text-3xl font-bold text-red-600">{reportData.totalStockOut}</p>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Stock Movement by Item */}
       <Card className="p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Stock Movement by Item</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Item
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stock In
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Stock Out
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Net Change
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {reportData.transactionsByItem.map((item) => (
+                <tr key={item.itemId}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {item.itemName}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-green-600 font-medium">{item.stockIn}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-red-600 font-medium">{item.stockOut}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className={`text-sm font-medium ${
+                      item.netChange >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {item.netChange}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Recent Transactions */}
+      <Card className="p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Transactions</h3>
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Filter className="h-5 w-5 text-gray-400" />
@@ -134,7 +198,6 @@ const TransactionReportPage = () => {
           </select>
         </div>
 
-        {/* Transactions Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -160,7 +223,7 @@ const TransactionReportPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions
+              {reportData.transactions
                 .filter(transaction => 
                   filters.transactionType === 'all' || 
                   transaction.transactionType === filters.transactionType
