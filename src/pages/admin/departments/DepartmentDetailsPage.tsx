@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/pages/admin/departments/DepartmentDetailsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, Users } from 'lucide-react';
@@ -7,9 +6,19 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { DepartmentResponse, UserResponse } from '@/types/api/types';
+import { DepartmentResponse, Status, UserResponse } from '@/types/api/types';
 import axiosInstance from '@/lib/axios';
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal';
+
+interface PaginatedResponse<T> {
+  users: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 const DepartmentDetailsPage = () => {
   const { id } = useParams();
@@ -19,43 +28,92 @@ const DepartmentDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Function to fetch all users with pagination
+  const fetchAllUsers = async (departmentId: string): Promise<UserResponse[]> => {
+    const firstPageResponse = await axiosInstance.get<PaginatedResponse<UserResponse>>('/users', {
+      params: {
+        page: 1,
+        limit: 100,
+        sortOrder: 'desc',
+        departmentId,
+      },
+    });
+
+    const { total, limit } = firstPageResponse.data.meta;
+    const totalPages = Math.ceil(total / limit);
+    let allUsers = [...firstPageResponse.data.users];
+
+    // If there are more pages, fetch them
+    if (totalPages > 1) {
+      const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const remainingRequests = remainingPages.map(page =>
+        axiosInstance.get<PaginatedResponse<UserResponse>>('/users', {
+          params: {
+            page,
+            limit: 100,
+            sortOrder: 'desc',
+            departmentId,
+          },
+        })
+      );
+
+      const responses = await Promise.all(remainingRequests);
+      responses.forEach((response: { data: { users: any; }; }) => {
+        allUsers = [...allUsers, ...response.data.users];
+      });
+    }
+
+    // Filter to only include active users
+    return allUsers.filter(user => 
+      user.status === Status.ACTIVE && 
+      user.userRoles.some((role: { departmentId: string; status: Status; }) => 
+        role.departmentId === departmentId && 
+        role.status === Status.ACTIVE
+      )
+    );
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
 
         // Fetch department
         const { data: departmentData } = await axiosInstance.get<DepartmentResponse>(`/departments/${id}`);
         setDepartment(departmentData);
 
-        // Fetch users for the department
-        const { data: usersData } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users', {
-          params: {
-            page: 1,
-            limit: 1000,
-            sortOrder: 'desc',
-            departmentId: id,
-          },
-        });
-        setUsers(usersData.users);
+        if (id) {
+          // Fetch all users using pagination
+          const allUsers = await fetchAllUsers(id);
+          setUsers(allUsers);
+        }
       } catch (error: any) {
-        console.error('Failed to fetch department and users:', error.message);
+        console.error('Failed to fetch department and users:', error);
+        setError(error.response?.data?.message || 'Failed to load department details');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    if (id) {
+      fetchData();
+    }
   }, [id]);
 
   const handleDelete = async () => {
+    if (!id) return;
+    
     try {
       setIsDeleting(true);
       await axiosInstance.delete(`/departments/${id}`);
       navigate('/admin/departments');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('Failed to delete department:', error.message);
+      console.error('Failed to delete department:', error);
+      setError(error.response?.data?.message || 'Failed to delete department');
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -64,6 +122,20 @@ const DepartmentDetailsPage = () => {
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">{error}</p>
+        <button
+          onClick={() => navigate('/admin/departments')}
+          className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Back to Departments
+        </button>
+      </div>
+    );
   }
 
   if (!department) {
@@ -79,6 +151,14 @@ const DepartmentDetailsPage = () => {
       </div>
     );
   }
+
+  const activeUsers = users.filter(user => 
+    user.status === Status.ACTIVE && 
+    user.userRoles.some(role => 
+      role.departmentId === id && 
+      role.status === Status.ACTIVE
+    )
+  );
 
   return (
     <div className="space-y-6">
@@ -153,7 +233,7 @@ const DepartmentDetailsPage = () => {
                   <p className="text-sm text-gray-500">Active members in department</p>
                 </div>
               </div>
-              <span className="text-2xl font-semibold text-gray-900">{users.length}</span>
+              <span className="text-2xl font-semibold text-gray-900">{activeUsers.length}</span>
             </div>
           </div>
         </Card>
