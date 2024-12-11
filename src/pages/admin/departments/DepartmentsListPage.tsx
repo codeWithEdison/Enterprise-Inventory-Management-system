@@ -1,27 +1,107 @@
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/pages/admin/departments/DepartmentsListPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { SearchInput } from '@/components/common/SearchInput';
 import { StatusBadge } from '@/components/common/StatusBadge';
-import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { DepartmentResponse, Status, UserResponse } from '@/types/api/types';
-import axiosInstance from '@/lib/axios';
+import axiosInstance from '@/lib/axios'; 
+
+interface UserCounts {
+  [key: string]: number;
+}
+
+interface PaginatedResponse<T> {
+  users: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 const DepartmentsListPage = () => {
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);
-  const [userCounts, setUserCounts] = useState<{ [key: string]: number }>({});
+  const [userCounts, setUserCounts] = useState<UserCounts>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | Status>('ALL');
+
+  const calculateUserCounts = (users: UserResponse[], departments: DepartmentResponse[]) => {
+    const userCounts: UserCounts = {};
+    
+    // Initialize counts for all departments to 0
+    departments.forEach(dept => {
+      userCounts[dept.id] = 0;
+    });
+
+    // Count users in each department based on their active roles
+    users.forEach(user => {
+      // Get all active roles for the user
+      const activeRoles = user.userRoles.filter(role => 
+        role.status === Status.ACTIVE && user.status === Status.ACTIVE
+      );
+      
+      // Count unique departments for this user
+      const userDepartments = new Set(activeRoles.map(role => role.departmentId));
+      
+      // Increment count for each department
+      userDepartments.forEach(deptId => {
+        if (userCounts.hasOwnProperty(deptId)) {
+          userCounts[deptId]++;
+        }
+      });
+    });
+
+    return userCounts;
+  };
+
+  // Function to fetch all users with pagination
+  const fetchAllUsers = async (): Promise<UserResponse[]> => {
+    const firstPageResponse = await axiosInstance.get<PaginatedResponse<UserResponse>>('/users', {
+      params: {
+        page: 1,
+        limit: 100,
+        sortOrder: 'desc',
+      },
+    });
+
+    const { total, limit } = firstPageResponse.data.meta;
+    const totalPages = Math.ceil(total / limit);
+    let allUsers = [...firstPageResponse.data.users];
+
+    // If there are more pages, fetch them
+    if (totalPages > 1) {
+      const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const remainingRequests = remainingPages.map(page =>
+        axiosInstance.get<PaginatedResponse<UserResponse>>('/users', {
+          params: {
+            page,
+            limit: 100,
+            sortOrder: 'desc',
+          },
+        })
+      );
+
+      const responses = await Promise.all(remainingRequests);
+      responses.forEach((response: { data: { users: any; }; }) => {
+        allUsers = [...allUsers, ...response.data.users];
+      });
+    }
+
+    return allUsers;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
 
         // Fetch departments
         const { data: departmentsData } = await axiosInstance.get<DepartmentResponse[]>('/departments', {
@@ -29,27 +109,19 @@ const DepartmentsListPage = () => {
             sortOrder: 'asc',
           },
         });
+
+        // Fetch all users using pagination
+        const allUsers = await fetchAllUsers();
+
         setDepartments(departmentsData);
 
-        // Fetch users
-        const { data: usersData } = await axiosInstance.get<{ users: UserResponse[]; meta: any }>('/users', {
-          params: {
-            page: 1,
-            limit: 1000,
-            sortOrder: 'desc',
-          },
-        });
+        // Calculate user counts
+        const counts = calculateUserCounts(allUsers, departmentsData);
+        setUserCounts(counts);
 
-        // Calculate user counts for each department
-        const userCountsByDepartment: { [key: string]: number } = {};
-        departmentsData.forEach((dept) => {
-          userCountsByDepartment[dept.id] = usersData.users.filter((user) =>
-            user.userRoles.some((role) => role.departmentId === dept.id)
-          ).length;
-        });
-        setUserCounts(userCountsByDepartment);
-      } catch (error: any) {
-        console.error('Failed to fetch departments and users:', error.message);
+      } catch (error) {
+        console.error('Failed to fetch departments and users:', error);
+        setError('Failed to load data. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -59,11 +131,29 @@ const DepartmentsListPage = () => {
   }, []);
 
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+        >
+          Try Again
+        </button>
+      </div>
+    );
   }
 
   const filteredDepartments = departments.filter((dept) => {
-    const matchesSearch =
+    const matchesSearch = 
       dept.name.toLowerCase().includes(search.toLowerCase()) ||
       dept.description?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || dept.status === statusFilter;
@@ -134,7 +224,7 @@ const DepartmentsListPage = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredDepartments.map((department) => (
-                <tr key={department.id}>
+                <tr key={department.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {department.name}
@@ -165,6 +255,12 @@ const DepartmentsListPage = () => {
               ))}
             </tbody>
           </table>
+
+          {filteredDepartments.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No departments found</p>
+            </div>
+          )}
         </div>
       </Card>
     </div>
