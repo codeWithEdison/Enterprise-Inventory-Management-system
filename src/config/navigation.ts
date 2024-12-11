@@ -147,7 +147,7 @@ export const AUTHENTICATED_MENUS: SideNavigationInterface[] = [
         title: "Pending Approvals",
         label: "Requests Pending Approval",
         url: "/requests/approve",
-        roles: [RoleName.HOD, RoleName.ADMIN]
+        roles: [RoleName.HOD]
       },
       {
         title: "All Requests",
