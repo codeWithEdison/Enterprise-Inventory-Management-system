@@ -1,63 +1,147 @@
-import { ChartCard } from '../ChartCard';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/common/Card';
-import { Clock, Package, CheckCircle } from 'lucide-react';
-import { CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
+import { PageHeader } from '@/components/common/PageHeader';
+import { LoadingSpinner } from '@/components/common/LoadingScreen';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Clock, CheckCircle2, XCircle, Package } from 'lucide-react';
+import axiosInstance from '@/lib/axios';
 
-export const NurseDashboard = () => {
-  const requestHistory = [
-    { name: 'Week 1', requests: 5 },
-    { name: 'Week 2', requests: 8 },
-    { name: 'Week 3', requests: 6 },
-    { name: 'Week 4', requests: 9 },
-  ];
+interface DashboardStats {
+  totalRequests: number;
+  pendingRequests: number;
+  rejectedRequests: number;
+  approvedRequests: number;
+  fulfilledRequests: number;
+}
+
+interface HistoryData {
+  name: string;
+  requests: number;
+}
+
+interface DashboardData {
+  stats: DashboardStats;
+  requestHistory: HistoryData[];
+}
+
+const NurseDashboard = () => {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axiosInstance.get('/dashboard');
+        setData(response.data);
+      } catch (err) {
+        setError('Failed to fetch dashboard data');
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-500 text-center p-4">
+        {error}
+      </div>
+    );
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const StatCard = ({ title, value, icon: Icon, color }: {
+    title: string;
+    value: number;
+    icon: React.ElementType;
+    color: string;
+  }) => (
+    <Card className="p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600">{title}</p>
+          <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+        </div>
+        <div className={`p-3 rounded-full ${color}`}>
+          <Icon className="h-6 w-6" />
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Request History">
-          <LineChart data={requestHistory}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line 
-              type="monotone" 
-              dataKey="requests" 
-              stroke="#3B82F6" 
-              strokeWidth={2}
-              name="Requests Made"
-            />
-          </LineChart>
-        </ChartCard>
+    <div className="space-y-6">
+      <PageHeader 
+        title="Dashboard" 
+        subtitle="Overview of stock requests and activity"
+      />
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Quick Status</h2>
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 p-4 bg-yellow-50 rounded-lg">
-              <Clock className="h-6 w-6 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-900">Pending Requests</p>
-                <p className="text-yellow-800">3 requests awaiting approval</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
-              <div>
-                <p className="font-medium text-green-900">Approved Requests</p>
-                <p className="text-green-800">2 requests ready for collection</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-              <Package className="h-6 w-6 text-blue-600" />
-              <div>
-                <p className="font-medium text-blue-900">Recent Deliveries</p>
-                <p className="text-blue-800">4 items received this week</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Requests"
+          value={data.stats.totalRequests}
+          icon={Package}
+          color="bg-blue-100 text-blue-600"
+        />
+        <StatCard
+          title="Pending Requests"
+          value={data.stats.pendingRequests}
+          icon={Clock}
+          color="bg-yellow-100 text-yellow-600"
+        />
+        <StatCard
+          title="Approved Requests"
+          value={data.stats.approvedRequests}
+          icon={CheckCircle2}
+          color="bg-green-100 text-green-600"
+        />
+        <StatCard
+          title="Rejected Requests"
+          value={data.stats.rejectedRequests}
+          icon={XCircle}
+          color="bg-red-100 text-red-600"
+        />
       </div>
-    </>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Request History</h3>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data.requestHistory}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="name"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="requests"
+                stroke="#2563eb"
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+    </div>
   );
 };
+
+export default NurseDashboard;
