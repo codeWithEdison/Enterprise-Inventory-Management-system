@@ -9,6 +9,7 @@ import { CreateRoleInput, RoleName } from '@/types/api/types';
 import { RolePermissionsForm } from './components/RolePermissionsForm';
 // import { mockApi } from '@/services/mockApi';
 import Alert, { AlertType } from '@/components/common/Alert';
+import Input from '@/components/common/Input';
 
 const defaultPermissions = {
   users: {
@@ -130,10 +131,10 @@ const CreateRolePage = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                {/* <label className="block text-sm font-medium text-gray-700 mb-1">
                   Role Name
-                </label>
-                <select
+                </label> */}
+                {/* <select
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
@@ -144,7 +145,12 @@ const CreateRolePage = () => {
                   {Object.values(RoleName).map(role => (
                     <option key={role} value={role}>{role}</option>
                   ))}
-                </select>
+                </select> */}
+                <Input
+                 type='test'
+                 title='Role Name'
+                 
+                 />
               </div>
             </div>
           </Card>
