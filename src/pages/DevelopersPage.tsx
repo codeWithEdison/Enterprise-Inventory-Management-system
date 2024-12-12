@@ -1,17 +1,17 @@
 // src/pages/DevelopersPage.tsx
-import React from 'react';
-import { 
-  Github, 
-  Linkedin, 
-  Mail, 
+import React from "react";
+import {
+  Github,
+  Linkedin,
+  Mail,
   Globe,
   Code,
   Database,
   Layout,
-  Shield
-} from 'lucide-react';
-import { PageHeader } from '@/components/common/PageHeader';
-import { Card } from '@/components/common/Card';
+  Shield,
+} from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import { Card } from "@/components/common/Card";
 
 const developers = [
   {
@@ -24,8 +24,8 @@ const developers = [
       email: "team@binaryhub.rw",
       github: "https://github.com/binaryhub",
       linkedin: "https://linkedin.com/company/binaryhub",
-      website: "https://binaryhub.rw"
-    }
+      website: "https://binaryhub.rw",
+    },
   },
   // Add more team members as needed
 ];
@@ -34,35 +34,49 @@ const technologies = [
   {
     icon: <Code className="h-6 w-6 text-blue-500" />,
     name: "Frontend",
-    description: "Built with React, TypeScript, and Tailwind CSS for a modern and responsive user interface.",
-    techs: ["React", "TypeScript", "Tailwind CSS", "React Router", "Recharts"]
+    description:
+      "Built with React, TypeScript, and Tailwind CSS for a modern and responsive user interface.",
+    techs: ["React", "TypeScript", "Tailwind CSS", "React Router", "Recharts"],
   },
   {
     icon: <Database className="h-6 w-6 text-green-500" />,
     name: "Backend",
-    description: "Powered by a robust backend system ensuring data integrity and smooth operations.",
-    techs: ["Node.js", "Express", "PostgreSQL", "Redis", "RESTful APIs"]
+    description:
+      "Powered by a robust backend system ensuring data integrity and smooth operations.",
+    techs: ["Node.js", "Express", "PostgreSQL", "Redis", "RESTful APIs"],
   },
   {
     icon: <Layout className="h-6 w-6 text-purple-500" />,
     name: "Design",
-    description: "User-centered design approach focusing on simplicity and efficiency.",
-    techs: ["Responsive Design", "Accessibility", "User Experience", "Modern UI"]
+    description:
+      "User-centered design approach focusing on simplicity and efficiency.",
+    techs: [
+      "Responsive Design",
+      "Accessibility",
+      "User Experience",
+      "Modern UI",
+    ],
   },
   {
     icon: <Shield className="h-6 w-6 text-red-500" />,
     name: "Security",
-    description: "Implemented with industry-standard security practices to protect sensitive data.",
-    techs: ["JWT", "Role-based Access", "Data Encryption", "Secure Authentication"]
-  }
+    description:
+      "Implemented with industry-standard security practices to protect sensitive data.",
+    techs: [
+      "JWT",
+      "Role-based Access",
+      "Data Encryption",
+      "Secure Authentication",
+    ],
+  },
 ];
 
 const DevelopersPage = () => {
   return (
-    <div className="space-y-6 m-16 space-x-10  "> 
+    <div className="space-y-6 m-16 space-x-10  ">
       <PageHeader
         title="Meet the Developers"
-        subtitle="The team behind UR HG Stock Management System"
+        subtitle="The team behindEIMS Management System"
       />
 
       {/* Team Section */}
@@ -75,7 +89,9 @@ const DevelopersPage = () => {
                 alt={dev.name}
                 className="w-32 h-32 mx-auto rounded-full"
               />
-              <h3 className="mt-4 text-lg font-semibold text-gray-900">{dev.name}</h3>
+              <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                {dev.name}
+              </h3>
               <p className="text-sm text-gray-500">{dev.role}</p>
               <p className="mt-2 text-sm text-gray-600">{dev.bio}</p>
 
@@ -131,13 +147,17 @@ const DevelopersPage = () => {
 
       {/* Technologies Section */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Technologies Used</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Technologies Used
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {technologies.map((tech, index) => (
             <Card key={index} className="p-6">
               <div className="flex flex-col items-center text-center">
                 {tech.icon}
-                <h3 className="mt-4 text-lg font-semibold text-gray-900">{tech.name}</h3>
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                  {tech.name}
+                </h3>
                 <p className="mt-2 text-sm text-gray-600">{tech.description}</p>
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
                   {tech.techs.map((t, i) => (

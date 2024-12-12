@@ -1,0 +1,86 @@
+<svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Gradient definitions -->
+    <defs>
+        <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+        </linearGradient>
+        <linearGradient id="boxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.9" />
+            <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.9" />
+        </linearGradient>
+    </defs>
+
+    <!-- Main container with dynamic shape -->
+    <path d="M 50,100 
+             L 250,100 
+             L 230,200 
+             Q 150,220 70,200 
+             Z" 
+          fill="url(#bgGradient)" />
+
+    <!-- Digital circuit lines -->
+    <g stroke="#a5f3fc" stroke-width="2" stroke-linecap="round">
+        <path d="M 70,150 L 100,150 L 100,170 L 130,170" fill="none" />
+        <path d="M 140,130 L 160,130 L 160,150 L 190,150" fill="none" />
+        <path d="M 170,180 L 200,180 L 200,160" fill="none" />
+        <circle cx="130" cy="170" r="3" fill="#a5f3fc" />
+        <circle cx="190" cy="150" r="3" fill="#a5f3fc" />
+        <circle cx="200" cy="160" r="3" fill="#a5f3fc" />
+    </g>
+
+    <!-- Dynamic boxes representing inventory -->
+    <g transform="translate(85,120)">
+        <g transform="rotate(-15)">
+            <rect x="0" y="0" width="30" height="30" fill="url(#boxGradient)" rx="5" 
+                  style="transform-origin: center; animation: pulse 2s infinite" />
+        </g>
+        <g transform="translate(40,-10) rotate(10)">
+            <rect x="0" y="0" width="30" height="30" fill="url(#boxGradient)" rx="5"
+                  style="transform-origin: center; animation: pulse 2s infinite 0.5s" />
+        </g>
+        <g transform="translate(80,0) rotate(-5)">
+            <rect x="0" y="0" width="30" height="30" fill="url(#boxGradient)" rx="5"
+                  style="transform-origin: center; animation: pulse 2s infinite 1s" />
+        </g>
+    </g>
+
+    <!-- Modern dots pattern -->
+    <g fill="#ffffff" fill-opacity="0.3">
+        <circle cx="80" cy="130" r="2" />
+        <circle cx="100" cy="140" r="2" />
+        <circle cx="120" cy="120" r="2" />
+        <circle cx="200" cy="130" r="2" />
+        <circle cx="220" cy="140" r="2" />
+        <circle cx="180" cy="120" r="2" />
+    </g>
+
+    <!-- System name with modern font -->
+    <g transform="translate(150, 250)">
+        <text text-anchor="middle" fill="#1e40af" font-family="Arial, sans-serif" font-weight="bold">
+            <tspan x="0" y="0" font-size="48">EIMS</tspan>
+            <tspan x="0" y="25" font-size="14" fill="#3b82f6">ENTERPRISE INVENTORY MANAGEMENT</tspan>
+        </text>
+    </g>
+
+    <!-- Animated ring -->
+    <circle cx="150" cy="150" r="120" 
+            stroke="#60a5fa" 
+            stroke-width="2"
+            stroke-dasharray="10,5"
+            fill="none"
+            style="transform-origin: center; animation: rotate 10s linear infinite" />
+
+</svg>
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>

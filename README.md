@@ -1,4 +1,4 @@
-# 🏥 UR HG STOCK MS
+# 🏥EIMS MS
 
 <div align="center">
 
@@ -39,12 +39,14 @@ The Hospital Inventory Management System (HIMS) is a comprehensive solution desi
 ## ✨ Features
 
 ### 🔐 Role-Based Access Control
+
 - **Admin Dashboard**: Complete system control and configuration
 - **HOD Interface**: Department-level oversight and approval management
 - **Stock Keeper Portal**: Inventory management and stock control
 - **Nurse Access**: Request creation and tracking
 
 ### 📦 Inventory Management
+
 - Real-time stock tracking
 - Multi-location support
 - Minimum stock alerts
@@ -52,6 +54,7 @@ The Hospital Inventory Management System (HIMS) is a comprehensive solution desi
 - Expiry date management
 
 ### 🔄 Request Workflow
+
 - Automated request processing
 - Multi-level approval system
 - Status tracking
@@ -59,6 +62,7 @@ The Hospital Inventory Management System (HIMS) is a comprehensive solution desi
 - Request history
 
 ### 📊 Reporting & Analytics
+
 - Stock level reports
 - Usage analytics
 - Department-wise consumption
@@ -68,6 +72,7 @@ The Hospital Inventory Management System (HIMS) is a comprehensive solution desi
 ## 💻 Tech Stack
 
 ### Frontend
+
 - React 18
 - TypeScript
 - Tailwind CSS
@@ -78,11 +83,13 @@ The Hospital Inventory Management System (HIMS) is a comprehensive solution desi
 - Recharts
 
 ### State Management
+
 - Context API
 - React Query for server state
 - Zustand for global state
 
 ### Development Tools
+
 - Vite
 - ESLint
 - Prettier
@@ -143,24 +150,28 @@ src/
 ## 👥 Role-Based Access
 
 ### Admin
+
 - Full system access
 - User management
 - System configuration
 - Report generation
 
 ### HOD (Head of Department)
+
 - Department oversight
 - Request approval
 - Stock monitoring
 - Department reports
 
 ### Stock Keeper
+
 - Inventory management
 - Stock updates
 - Request fulfillment
 - Stock reports
 
 ### Nurse
+
 - Item requests
 - Stock viewing
 - Request tracking

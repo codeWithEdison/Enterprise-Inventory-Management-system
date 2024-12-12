@@ -1,0 +1,35 @@
+<svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+    <!-- Base square with rounded corners -->
+    <rect x="25" y="25" width="250" height="250" fill="#ffffff" stroke="#1e40af" stroke-width="8" rx="40"/>
+    
+    <!-- Hexagonal pattern for inventory -->
+    <g transform="translate(150,150) scale(0.8)">
+        <!-- Outer hexagons -->
+        <path d="M 0,-80 L 69.28,-40 L 69.28,40 L 0,80 L -69.28,40 L -69.28,-40 Z" 
+              fill="none" stroke="#60a5fa" stroke-width="12"/>
+        <!-- Inner hexagon -->
+        <path d="M 0,-50 L 43.3,-25 L 43.3,25 L 0,50 L -43.3,25 L -43.3,-25 Z" 
+              fill="#2563eb"/>
+        <!-- Center dot -->
+        <circle cx="0" cy="0" r="10" fill="#1e40af"/>
+    </g>
+    
+    <!-- Text EIMS -->
+    <text x="150" y="250" 
+          font-family="Arial, sans-serif" 
+          font-size="42" 
+          font-weight="bold" 
+          text-anchor="middle" 
+          fill="#1e40af">
+        <tspan>EIMS</tspan>
+    </text>
+    
+    <!-- Enterprise -->
+    <text x="150" y="80" 
+          font-family="Arial, sans-serif" 
+          font-size="24" 
+          text-anchor="middle" 
+          fill="#2563eb">
+        Enterprise
+    </text>
+</svg>

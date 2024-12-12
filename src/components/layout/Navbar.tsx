@@ -6,20 +6,18 @@ import { TbArrowsDiagonalMinimize2 } from "react-icons/tb";
 import { RiLockPasswordLine } from "react-icons/ri";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { AppDispatch } from '../../store';
+import { AppDispatch } from "../../store";
 import { logout as logoutAction } from "../../features/auth/authSlice";
-import  useAuth  from "../../hooks/useAuth";
+import useAuth from "../../hooks/useAuth";
 import { NotificationDropdown } from "../notifications/NotificationDropdown";
+// import EimsLogo from "../common/EimsLogo";
 
 interface NavBarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (status: boolean) => void;
 }
 
-const NavBar: React.FC<NavBarProps> = ({
-  sidebarOpen,
-  setSidebarOpen,
-}) => {
+const NavBar: React.FC<NavBarProps> = ({ sidebarOpen, setSidebarOpen }) => {
   const [viewUser, setViewUser] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -30,32 +28,35 @@ const NavBar: React.FC<NavBarProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
         setViewUser(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
       setViewUser(false);
-      
+
       // Call logout from auth hook
       await logout();
-      
+
       // Dispatch Redux action
       dispatch(logoutAction());
-      
+
       // Navigate to login
-      navigate('/login');
+      navigate("/login");
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
       // Still navigate to login even if there's an error
-      navigate('/login');
+      navigate("/login");
     } finally {
       setIsLoggingOut(false);
     }
@@ -80,45 +81,56 @@ const NavBar: React.FC<NavBarProps> = ({
           </button>
 
           <div className="flex items-center gap-2">
-            <img src='/logo.png' alt="UR Logo" className="w-10 md:w-12" />
+            <img src="/logo.png" alt="UR Logo" className="w-10 md:w-12" />
+            {/* <EimsLogo className="h-16 w-auto" /> */}
             <span className="text-gray-700 font-bold text-sm md:text-base hidden sm:block">
-              UR HG STOCK
+              UR HG Ltd
             </span>
           </div>
         </div>
 
         {/* User Menu */}
         <div className="flex items-center mr-2" ref={userMenuRef}>
-        <NotificationDropdown />
+          <NotificationDropdown />
           <button
             onClick={() => setViewUser(!viewUser)}
             className="flex items-center gap-2 bg-primary-blue-white hover:bg-primary-100 
                       py-2 pl-3 pr-1 rounded-md transition-all duration-200"
             aria-expanded={viewUser}
           >
-            <div className="rounded-full flex items-center justify-center bg-gray-400 
-                          group-hover:bg-primary-800 text-white h-8 w-8">
+            <div
+              className="rounded-full flex items-center justify-center bg-gray-400 
+                          group-hover:bg-primary-800 text-white h-8 w-8"
+            >
               <FaUserCircle className="text-2xl" />
             </div>
             <span className="text-sm hidden sm:block pr-2">
               {user?.firstName} {user?.lastName}
             </span>
-            <IoIosArrowDown className={`text-xl text-primary-800 transition-transform duration-200 
-                                    ${viewUser ? 'rotate-180' : ''}`} />
+            <IoIosArrowDown
+              className={`text-xl text-primary-800 transition-transform duration-200 
+                                    ${viewUser ? "rotate-180" : ""}`}
+            />
           </button>
 
           {/* Dropdown Menu */}
           {viewUser && (
-            <div className="absolute top-full right-0 mt-1 w-screen sm:w-64 
+            <div
+              className="absolute top-full right-0 mt-1 w-screen sm:w-64 
                           bg-white rounded-b-lg sm:rounded-lg shadow-lg border border-gray-200 
-                          animate__animated animate__fadeIn animate__faster">
+                          animate__animated animate__fadeIn animate__faster"
+            >
               {/* Mobile User Info */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center gap-3">
                   <FaUserCircle className="text-4xl text-gray-400" />
                   <div>
-                    <div className="font-medium">{user?.firstName} {user?.lastName}</div>
-                    <div className="text-sm text-gray-500">{user?.userRoles?.[0]?.role.name}</div>
+                    <div className="font-medium">
+                      {user?.firstName} {user?.lastName}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {user?.userRoles?.[0]?.role.name}
+                    </div>
                   </div>
                 </div>
               </div>
