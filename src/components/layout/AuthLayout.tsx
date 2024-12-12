@@ -13,7 +13,7 @@ const AuthLayout = () => {
               {/* <img src="/logo.png" alt="UR Logo" className="h-12 w-auto" /> */}
                 {/* <EimsLogo className="h-12 w-auto" /> */}
               <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-gray-900">Enterprise Inventory Mangamenet  system </h1>
+                <h1 className="text-xl font-bold text-gray-900">Enterprise Inventory  & Requests Mangamenet  system </h1>
                 {/* <p className="text-sm text-gray-500">Nyarugenge Campus</p> */}
               </div>
             </div>
